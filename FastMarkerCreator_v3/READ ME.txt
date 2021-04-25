@@ -1,0 +1,26 @@
+Thank you for downloading the Fast Marker Creator script for Adobe After Effects. To install this script place it in your ScriptUI Panels folder for the After Effects version you are using. Once installed, you can run the script from either navigating to the Window menu and scrolling down to click on "FastMarkerCreator_v3", or by navigating to the File menu, then Scripts and clicking on "FastMarkerCreator_v3".
+
+
+The script install default paths are...
+     MAC:
+	(dockable panel)
+	Master HD/Applications/Adobe After Effects <version>/Scripts/ScriptUI Panels/
+
+	(floating panel)
+	Master HD/Applications/Adobe After Effects <version>/Scripts/
+
+     PC:
+	(dockable panel)
+	C:\Program Files\Adobe\Adobe After Effects <version>\Support Files\Scripts\ScriptUI Panels\
+
+	(floating panel)
+	C:\Program Files\Adobe\Adobe After Effects <version>\Support Files\Scripts\
+
+
+CHANGE LOG:
+v2.0    - Initial public release
+	 
+v3.0
+	- Updated comp marker creation for After Effects CC2017 and newer.
+	- Added new Comp marker UI features [Text, Duration, Comment, Chapter, URL, Frame Target, Cue Point Name, Event Cue Point]
+	- Optimized code overall
