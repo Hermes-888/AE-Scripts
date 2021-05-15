@@ -52,7 +52,7 @@
 				selectedItem = dataList.selection;// this.selection?
 
 				propsPanel.enabled = true;
-				noteText.text = cueItems[listItemId].notes;
+				noteText.text = cueItems[listItemId].note;
 
 				try {
 					var markText = dataList.selection.subItems[1].text.toLowerCase();
@@ -111,7 +111,7 @@
 		tools.spacing = 10;
 		tools.margins = 10;
 
-		var typeList = ['Title', 'Message', 'Question', 'Image', 'Custom'];
+		var typeList = ['Custom', 'Title', 'Message', 'Question', 'Image'];
 		var typeDD = tools.add('dropdownlist', undefined, typeList);
 		typeDD.helpTip = "Select the type of interaction for this marker";
 		typeDD.selection = 0;
@@ -203,7 +203,7 @@
 		var noteText = noteGroup.add( "edittext", undefined, "", {multiline: true});// , scrollable: true
 		noteText.size = [250, 20];// 250 wide & 2 rows?
 		noteText.onChanging = function () {
-			cueItems[listItemId].notes = this.text;
+			cueItems[listItemId].note = this.text;
 		}
 
 		var buttonPanel = myPanel.add('panel', undefined, 'Actions:');
@@ -251,9 +251,8 @@
 			}
 			if (templateComp) {
 				var compMarker = new MarkerValue('Custom');
-				//compMarker.comment = typeList[typeDD.selection] !== "Custom" ? typeList[typeDD.selection] : 'Custom';
-				// Todo: set marker comment to selected dd item
-				compMarker.comment = 'Custom';
+				// Todo: set marker comment to selected type
+				compMarker.comment = typeList[typeDD.selection];//'Custom';
 				compMarker.time = templateComp.time;
 				compMarker.duration = 0;//0.5;
 				compMarker.label = peach;// 6
@@ -281,7 +280,7 @@
 				cueObj.start = timeToCurrentFormat(time, frameRate);
 				cueObj.end = timeToCurrentFormat(time + 0.05, frameRate);
 				cueObj.compIndex = templateIndex;//templateComp.index for app.project.items(index)
-				cueObj.notes = "";
+				cueObj.note = "";
 				cueObj.settings = {
 					useBlur: false,// blur while viewing interaction
 					useOverlay: true,// overlay gradient color
@@ -324,17 +323,19 @@
 						if (marker.label === 0) {
 							marker.label = peach;// builder may have set a different color
 							templateComp.markerProperty.setValueAtKey(m, marker);
+						} else {
+							peach = marker.label;// use the prefered color
 						}
 
 						var time = templateComp.markerProperty.keyTime(m);// NOT: .keyValue(m).time;
 						if (time) {
-							listItem.subItems[3].text = timeToCurrentFormat(time, 30);// frameRate
+							listItem.subItems[3].text = timeToCurrentFormat(time, frameRate);
 							// data for export to vtt file id=comment, start=time, end=start+.05, text = settings
 							cueObj.id = marker.comment;// type of interaction
 							cueObj.start = timeToCurrentFormat(time, frameRate);
 							cueObj.end = timeToCurrentFormat(time + 0.05, frameRate);
 							cueObj.compIndex = templateIndex;//templateComp.index for app.project.items(index)
-							cueObj.notes = "";
+							cueObj.note = "";
 							cueObj.settings = {
 								useBlur: false,// blur while viewing interaction
 								useOverlay: true,// overlay gradient color
@@ -364,12 +365,13 @@
 				var securitySetting = app.preferences.getPrefAsLong("Main Pref Section", "Pref_SCRIPTING_FILE_NETWORK_SECURITY");
 				return (securitySetting === 1);
 			} catch(err){
-				alert("Error in isSecurityPrefSet function\n" + err.toString());
+				alert("Error in isSecurityPrefSet function \n" + err.toString());
 			}
 		}
 		/**
-		 * convert markers to cue data
+		 * convert markers to webVTT cue data
 		 * Export .vtt file in the project folder
+		 * could be adapted to create a captions file
 		 */
 		function saveVttFile() {
 			if (!(isSecurityPrefSet())) {
@@ -378,12 +380,17 @@
 						"\"Allow Scripts to Write Files and Access Network\"");
 				return;
 			}
+			if (cueItems.length === 0) {
+				alert("There are no markers to export!");
+				return;
+			}
 			var count = cueItems.length;
+			// 1000 milliseconds divided by 29.97 fps = 33.3667
+			var msFPS = 1000/templateComp.frameRate;
 			var theFile = File.saveDialog("Save the cue file.", "*.vtt", "TEXT vtt");
 
 			// if user didn't cancel and there are markers
 			if (theFile != null && count > 0) {
-				// open file for "w"riting,
 				theFile.open("w", "TEXT", "????");
 				theFile.encoding = "UTF-8";
 
@@ -406,21 +413,21 @@
 					var str_in = cueItems[x].start;
 					var timeCodeIn = str_in.slice(0, 8);
 					var timeCodeSeconds = str_in.slice(9, 11);
-					// 1000 milliseconds divided by 25 fps = 40 // 1000/30 fps = 33.333
-					var milliseconds = timeCodeSeconds * 33;
+					// 1000 milliseconds divided by 29.97 fps = 33.3667
+					var milliseconds = timeCodeSeconds * msFPS;//33;
 					var cueStart = timeCodeIn + "." + milliseconds;
 
 					var str_out = cueItems[x].end;
 					var timeCodeOut = str_out.slice(0, 8);
 					timeCodeSeconds = str_out.slice(9, 11);
-					milliseconds = timeCodeSeconds * 33;
+					milliseconds = timeCodeSeconds * msFPS;//33;
 					var cueEnd = timeCodeOut + "." + milliseconds;
 					var cueText = JSON.stringify(cueItems[x].settings);
 
-					//write the results to the file
-					if (cueItems[x].notes !== "") {
-						cueItems[x].notes.replace('\n', ' ');
-						theFile.write('Note: '+cueItems[x].notes+"\r\n\n");
+					// write the results to the file
+					if (cueItems[x].note !== "") {
+						//cueItems[x].note.replace('\n', ' ');// don't allow 2 new lines
+						theFile.write('Note: '+cueItems[x].note+"\r\n\n");
 					}
 					theFile.write(cueItems[x].id);// cue.type
 					theFile.write("\r\n");
@@ -428,7 +435,7 @@
 					theFile.write(" --> ");
 					theFile.write(cueEnd);
 					theFile.write("\r\n");
-					theFile.write(cueText);// cueItems[x].text
+					theFile.write(cueText);// cue.text
 					theFile.write("\r\n\n");
 				}
 
