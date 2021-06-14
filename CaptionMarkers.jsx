@@ -26,9 +26,10 @@
 		var captionComp;// captions layer solid, text and markers
 		var captionCompIndex;// set by findTemplate
 		var hasCaptions = false;// true if captionComp was added to TemplateComp
+		var captionText;// add markers to captionText, comment & text = caption text
 		// selected item and index of the clicked ListBox row for editing
 		var selectedItem = null;
-		var listItemId = null;
+		var selectedIndex = null;
 		//var markerArray = [];// array of marker objects for listBox
 		var cueItems = [];// array of cue objects
 		var peach = 6;// set marker color if not set already
@@ -55,12 +56,12 @@
 		});
 		dataList.onChange = function () {
 			if (dataList.selection != null) {
-				listItemId = dataList.selection.index;
+				selectedIndex = dataList.selection.index;
 				selectedItem = dataList.selection;
 
 				propsPanel.enabled = true;
-				noteText.text = cueItems[listItemId].note;
-                templateComp.time = cueItems[listItemId].start;
+				noteText.text = cueItems[selectedIndex].note;
+                templateComp.time = cueItems[selectedIndex].start;
 
 				// try {
 				// 	var markText = dataList.selection.subItems[1].text.toLowerCase();
@@ -75,7 +76,7 @@
 				// 	//dataList.selection.subItems[1].text = markText;
 				// } catch(err) { alert('ERROR: '+err.toString()); }
 
-				//alert('set boxes: '+listItemId+' : '+ JSON.stringify(cueSettings));
+				//alert('set boxes: '+selectedIndex+' : '+ JSON.stringify(cueSettings));
 			}
 		};
 
@@ -101,7 +102,7 @@
         });
 		noteText.size = [250, 55];// 3 rows
 		noteText.onChanging = function () {
-			cueItems[listItemId].note = this.text;
+			cueItems[selectedIndex].note = this.text;
             selectedItem.subItems[2].text = this.text;
             refreshListBox();
 		}
@@ -146,8 +147,6 @@
             dataList.size = [ls[0], ls[1]];
         }
 		function findTemplateComp() {
-			alert('Template layers: '+templateComp.layers.length+' : '+JSON.stringify(templateComp.layers));
-			
 			for (var i = 1; i <= app.project.items.length; i++) {
 				var curItem = app.project.items[i];
 				// check if this item is a composition
@@ -156,9 +155,12 @@
 					if (curItem.name === 'Template') {
 						templateComp = curItem;// for addMarker button
 						templateIndex = i;
-						//curItem.openInViewer();// make sure it is open to see markers
-						for (var i=0; i<templateComp.layers.length; i++) {
-							if (templateComp.layers[i].name === '[Captions]') {
+						curItem.openInViewer();// make sure it is open to see markers
+						
+						alert('Template layers: '+templateComp.numLayers+' : '+JSON.stringify(templateComp.layers));
+						//alert("name of last layer is " + templateComp.layer(templateComp.numLayers).name);
+						for (var x=0; x<templateComp.numLayers; x++) {
+							if (templateComp.layers[x].name === '[Captions]') {
 								hasCaptions = true;
 							}
 						}
@@ -166,7 +168,8 @@
 					if (curItem.name === 'Captions') {
 						captionComp = curItem;// for addMarker button
 						captionCompIndex = i;
-						//curItem.openInViewer();// make sure it is open to see markers
+						// alert('captionComp is in: '+)
+						// app.project.item(index).layer(index).containingComp
 					}
 				}
 			}
@@ -177,39 +180,50 @@
 		// add Caption Text] to templateComp? can the shape and text layers be linked together? 
 		// only once. in its own comp? that can be hidden or deleted
 		// https://ae-scripting.docsforadobe.dev/items/compitem/
-		// add captionComp to templateComp, add markers to captionComp?
+		// add captionComp to templateComp, add markers to captionComp Text layer?
+		// https://ae-scripting.docsforadobe.dev/other/markervalue/#markervalue
 		// https://ae-scripting.docsforadobe.dev/layers/layercollection/
 		// https://ae-scripting.docsforadobe.dev/layers/layercollection/#layercollection-addsolid
 		// https://github.com/NTProductions/lyric-music-video-generator-script/blob/main/Lyric%20Music%20Video%20Generator.jsx
 		/**
-		 * create captionComp once, add it to templateComp
-		 * add markers to captionComp?
+		 * create captionComp once, add it to templateComp once
+		 * add markers to captionComp
 		 */
 		function addCaptionComp(dataList) {
 			// if !captionComp, create it then add it to Template.layer(1)
 			findTemplateComp();
 			if (!captionComp && !hasCaptions) {
+				app.beginUndoGroup("Add caption comp");
 				captionComp = app.project.items.addComp("Captions", 1920, 720, 1.0, 5, 29.97);
 				var solidLayer = captionComp.layers.addSolid([0, 0, 0], "darkbkg", 1920, 120, 1.0);
 				//									addSolid([0, 0, 0, .8] ???
 				// https://ae-scripting.docsforadobe.dev/properties/property/
-				// solidLayer.opacity = 80;
-				// solidLayer.position.y = 680;
-				var textLayer = captionComp.addBoxText([1920, 120]);
-				textLayer.position.setValue([0, 680.0, 0.0]);
+				solidLayer.opacity.setValue(80);
+				solidLayer.position.setValue([0, 680.0, 0.0]);
+				// add markers to captionText layer
+				captionText = captionComp.layers.addBoxText([1920, 120]);
+				captionText.position.setValue([0, 680.0, 0.0]);
+				// captionComp.layers.addNull();// layer for markers?
 				
+				// try {} catch(err) { alert('ERROR: '+err.toString()); }
 				// if templateComp does not contain captionComp, add it now
-				for (var i=0; i<templateComp.layers.length; i++) {
+				for (var i=0; i<templateComp.​numLayers; i++) {
 					if (templateComp.layers[i].name === '[Captions]') {
 						hasCaptions = true;
+						templateComp.layers[i].enabled = true;
+						alert('Captions Found');
 					}
 				}
 				if (!hasCaptions) {
+					hasCaptions = true;
 					templateComp.layers.add(captionComp);
-					// app.project.item(index).layer(index).moveToBeginning()
+					//alert('Captions Added: '+templateComp.​numLayers);
+					alert("last layer name: " + templateComp.layer(templateComp.numLayers).name);
+					templateComp.layer(templateComp.numLayers).moveToBeginning();
 				}
 
-				alert('Template layers: '+templateComp.layers.length+' : '+JSON.stringify(templateComp.layers));
+				alert('Template layers: '+templateComp.numLayers+' : '+JSON.stringify(templateComp.layers));
+				app.endUndoGroup();
 			}
 		}
 
@@ -224,7 +238,14 @@
 				compMarker.time = templateComp.time;
 				compMarker.duration = 1;// ToDo: duration
 				compMarker.label = peach;// 6
-				templateComp.markerProperty.setValueAtTime(templateComp.time, compMarker);
+				// add markers to captionComp Text layer (captionText)
+				// add newBoxText? layer index = 1+selectedIndex?
+				// captionText = captionComp.layers.addBoxText([1920, 120]);
+				// captionText.position.setValue([0, 680.0, 0.0]);
+				captionText.property('Marker').setValueAtTime(templateComp.time, compMarker);
+				captionText.text = 'Add Caption Text';
+				captionText.duration.setValue(compMarker.duration);
+				//templateComp.markerProperty.setValueAtTime(templateComp.time, compMarker);
 
 				// make sure the Display Type is TIMECODE for exporting vtt
                 var displayType = app.project.timeDisplayType;
