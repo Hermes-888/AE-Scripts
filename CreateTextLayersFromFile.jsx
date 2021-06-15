@@ -1,11 +1,12 @@
-//
-// createTextLayersFromFile.jsx
-// https://www.motionscript.com/ae-scripting/create-text-layers-from-file.html
+/**
+    createTextLayersFromFile.jsx
+    https://www.motionscript.com/ae-scripting/create-text-layers-from-file.html
+    https://www.youtube.com/watch?v=6P76aFYmOR8
 
-//
-// This script reads a user specified text file and
-// creates a text layer for each line of text in a 
-// new comp called "my text comp"
+    This script reads a user specified text file and
+    creates a text layer for each line of text in a 
+    new comp called "my text comp"
+*/
 {
   // Prompt user to select text file
   var myFile = File.openDialog("Please select input text file.");
@@ -23,9 +24,9 @@
       if(!proj) {proj = app.newProject();}
 
       // create new comp named 'my text comp'
-      var compW = 160; // comp width
-      var compH = 120; // comp height
-      var compL = 15;  // comp length (seconds)
+      var compW = 1280; // comp width
+      var compH = 720; // comp height
+      var compL = 15;  // comp length (seconds) templateComp.length
       var compRate = 24; // comp frame rate
       var compBG = [48/255,63/255,84/255] // comp background color
   
@@ -35,13 +36,23 @@
 
       // read text lines and create text layer for each
       // until end-of-file is reached
-
       var text;
       while (!myFile.eof) {
         text = myFile.readln();
         if (text == "") {text = "\r";}
-        // addBoxText?
-        myComp.layers.addText(text);
+        // else?
+        var textLayer = myComp.layers.addBoxText(text);
+        var textProps = textLayer.sourceText;
+        var content = textProps.value;
+            content.resetCharStyle();
+            content.resetParagraphStyle();
+            content.boxTextSize = [compW, 160];
+            content.text = text;
+            //content.font = 'Myriad';
+            content.fontSize = 36;
+            content.leading = 50;
+            content.fillColor = [1,1,1];// white
+        textProps.setValue(content);
       }
 
       // close the file before exiting
@@ -51,7 +62,5 @@
     } else {
       alert("File open failed!");
     }
-  } else {
-    alert("No text file selected.");
   }
 }
