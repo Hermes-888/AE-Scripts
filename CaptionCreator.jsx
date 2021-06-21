@@ -64,14 +64,14 @@
 
 				propsPanel.enabled = true;
 				// set pointer to [Captions] layer marker for noteText changes
-				captionMarker = cueItems[selectedIndex].marker;
-				templateComp.time = cueItems[selectedIndex].time+0.01;
+				//captionMarker = cueItems[selectedIndex].marker;
+				templateComp.time = cueItems[selectedIndex].time;
 				noteText.text = cueItems[selectedIndex].note;
 				noteText.active = true;// focus on the edit box
 				// try {
 					// alert('captionMarker: '+captionMarker.comment);// OK
 					// alert(' cue: '+JSON.stringify(cueItems[selectedIndex].marker));
-					// captionLayer.property('Marker').removeKey(1+selectedIndex);
+					// captionLayer.sourceText.removeKey(1+selectedIndex);
 				// } catch(err) { alert('listChange ERROR: '+err.toString()); }
 			}
 		};
@@ -104,21 +104,21 @@
 			try {
 				selectedItem.subItems[1].text = this.text;// JSON.stringify(this.text)
 				cueItems[selectedIndex].note = this.text;
-				captionText = cueItems[selectedIndex].captionText;
+				// captionText = cueItems[selectedIndex].captionText;
 				// update the Marker & TextLayer
-				var txt = captionText.sourceText.value;
+				var txt = captionLayer.sourceText.keyValue(1+selectedIndex);
 				txt.text = this.text;
-				captionText.sourceText.setValue(txt);
+				captionLayer.sourceText.setValueAtTime(cueItems[selectedIndex].time, txt);
 				//captionMarker.comment = this.text;// doesn't UPDATE
 				//alert('TEST: '+captionMarker.duration+' : '+captionMarker.comment);// OK
-				captionLayer.property('Marker').removeKey(1+selectedIndex);
-				var marker = new MarkerValue('Caption Text');
-					marker.comment = this.text;
-					marker.time = cueItems[selectedIndex].time;
-					marker.duration = captionMarker.duration;
-					marker.label = labelColor;
-				captionLayer.property('Marker').setValueAtTime(cueItems[selectedIndex].time, marker);
-				captionMarker = captionLayer.property('Marker').keyValue(selectedIndex);
+				// captionLayer.property('Marker').removeKey(1+selectedIndex);
+				// var marker = new MarkerValue('Caption Text');
+				// 	marker.comment = this.text;
+				// 	marker.time = cueItems[selectedIndex].time;
+				// 	marker.duration = captionMarker.duration;
+				// 	marker.label = labelColor;
+				// captionLayer.property('Marker').setValueAtTime(cueItems[selectedIndex].time, marker);
+				// captionMarker = captionLayer.property('Marker').keyValue(selectedIndex);
 			} catch(err) { alert('noteText ERROR: '+err.toString()); }
 			refreshListBox();
 		}
@@ -188,10 +188,10 @@
 			Ask, is it easier to adjust the text layers and sync the markers to them?
 			or adjust the markers and sync the layers (currently)
 
-			captionComp could have 1 TextLayer w/keyframes
+			templateComp could have 1 TextLayer w/keyframes on the SoureText
 			drag the keyframes to adjust timing. 
 			findMarkers() will sync the data
-			is it possible to capture timeline events?
+			is it possible to capture timeline drag events? to call findMarkers() & refresh cueItems
 
 			https://ae-scripting.docsforadobe.dev/items/compitem/
 			https://ae-scripting.docsforadobe.dev/other/markervalue/#markervalue
@@ -202,7 +202,8 @@
 			https://extendscript.docsforadobe.dev/user-interface-tools/types-of-controls.html
 			https://extendscript.docsforadobe.dev/user-interface-tools/common-properties.html
 
-			https://github.com/NTProductions/lyric-music-video-generator-script/blob/main/Lyric%20Music%20Video%20Generator.jsx
+			https://lova.tt/scriptlets
+            https://github.com/NTProductions/lyric-music-video-generator-script/blob/main/Lyric%20Music%20Video%20Generator.jsx
 		 */
         /**
          * Refresh the listBox by resizing it to update the list items
@@ -214,69 +215,68 @@
         }
 
 		/**
-		 * Set up global variables, templateComp, captionComp & captionLayer
-		 * if CaptionComp but not a layer of Template, add it Once
+		 * Set up global variables, templateComp & captionLayer
+		 * if captionLayer is not a layer of Template, add it Once
 		 * called from other functions
 		 */
 		function findTemplateComp() {
 			for (var i = 1; i <= app.project.items.length; i++) {
 				var curItem = app.project.items[i];
 				// check if this item is a composition
-				if (curItem instanceof CompItem) {
-					// only use markers on the Template composition
-					if (curItem.name === 'Template') {
-						templateComp = curItem;// for addMarker button
-						templateIndex = i;
-						frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
-						//curItem.openInViewer();// make sure it is open to see markers
+				if (curItem instanceof CompItem && curItem.name === 'Template') {
+                    templateComp = curItem;// for addMarker button
+                    templateIndex = i;
+                    frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
+                    //curItem.openInViewer();// make sure it is open to see markers
 
-						try {
-							for (var x=1; x<=templateComp.numLayers; x++) {
-								if (templateComp.layers[x].name === 'Captions') {
-									hasCaptions = true;
-									captionLayer = templateComp.layers[x];
-									//alert('Has Captions on layer: '+x);
-								}
-							}
-						} catch(err) { alert('findTemplate ERROR: '+err.toString()); }
-					}
-					if (curItem.name === 'Captions') {
-						captionComp = curItem;// for addMarker button
-					}
+                    try {
+                        for (var x=1; x<=templateComp.numLayers; x++) {
+                            if (templateComp.layers[x].name === 'Captions') {
+                                hasCaptions = true;
+                                captionLayer = templateComp.layers[x];
+                                captionLayer.enabled = true;
+                                btnGrp2.enabled = true;
+                                //alert('Has Captions on layer: '+x);
+                            }
+                        }
+                    } catch(err) { alert('findTemplate ERROR: '+err.toString()); }
 				}
 			}
 
-			// if CaptionComp but not a layer of Template, add it
-			if (!captionComp && !hasCaptions) {
-				app.beginUndoGroup('Add caption comp');
+			// if not a layer on Template, add it
+			if (!captionLayer && !hasCaptions) {
+				app.beginUndoGroup('Add caption layer');
 				try {
-					captionComp = app.project.items.addComp('Captions', 1280, 720, 1.0, templateComp.workAreaDuration, 29.97);
-					captionComp.bgColor = [1,1,1];
-					var solidLayer = captionComp.layers.addSolid([0, 0, 0], 'darkbkg', 1280, 130, 1.0);
-					// https://ae-scripting.docsforadobe.dev/properties/property/
-					solidLayer.opacity.setValue(75);
-					solidLayer.position.setValue([640, 655]);
+                    // one text layer w/ keyframes on the SourceText
+                    captionLayer = templateComp.layers.addBoxText([1280, 120]);
+                    captionLayer.position.setValue([640, 660]);
+                    captionLayer.inPoint = 0;// seconds
+                    captionLayer.outPoint = templateComp.workAreaDuration;
+                    captionLayer.name = 'Captions';
 
-					// if templateComp contains captionComp, set flag and captionLayer
-					for (var i=1; i<=templateComp.​numLayers; i++) {
-						//alert('template layer name: '+x+' '+templateComp.layers[x].name);
-						if (templateComp.layers[i].name === 'Captions') {
-							hasCaptions = true;
-							templateComp.layers[i].enabled = true;
-							captionLayer = templateComp.layers[i];
-							btnGrp2.enabled = true;
-							//alert('Captions Found on layer '+i);
-						}
-					}
-					// if templateComp does not contain captionComp, add it now
-					if (!hasCaptions) {
-						hasCaptions = true;
-						captionLayer = templateComp.layers.add(captionComp);
-						btnGrp2.enabled = false;
-						// captionLayer.locked = true;// if locked, can I still control w/script?
-						//alert('Captions Added: '+templateComp.​numLayers+' : '+captionLayer.name);
-						//alert('last layer name: ' + templateComp.layer(templateComp.numLayers).name);// [White Solid 1]
-					}
+                    var txt = captionLayer.sourceText.value;
+                    //txt.resetCharStyle();
+                    // txt.resetParagraphStyle();
+                    txt.boxTextSize = [1280, 110];
+                    txt.text = txtArray[i];
+                    txt.font = 'Arial-Bold';// w/black stroke
+                    // use ALL properties for this to work?
+                    txt.fontSize = 36;
+                    txt.fillColor = [1, 1, 1];
+                    txt.applyFill = true;
+                    txt.strokeColor = [0, 0, 0];
+                    txt.strokeOverFill = true;
+                    txt.applyStroke = true;
+                    txt.leading = 40;// line height
+                    txt.tracking = 40;// character width
+                    txt.justification = ParagraphJustification.CENTER_JUSTIFY;
+                    captionLayer.sourceText.setValue(txt);
+                    btnGrp2.enabled = true;
+					// https://ae-scripting.docsforadobe.dev/properties/property/
+
+                    // captionLayer.locked = true;// if locked, can I still control w/script?
+                    //alert('Captions Added: '+templateComp.​numLayers+' : '+captionLayer.name);
+                    //alert('last layer name: ' + templateComp.layer(templateComp.numLayers).name);// [White Solid 1]
 				} catch(err) { alert('ERROR: '+err.toString()); }
 				app.endUndoGroup();
 			}
@@ -284,19 +284,18 @@
 
 		/**
 		 * Open a .txt file and create
-		 * 	Markers on Template Captions layer
-		 * 	TextLayers on captionComp (could be 1 layer w/keyframes)
+		 * 	Keyframes on captionLayer TextLayer
 		 * 	dataList items
 		 * 	cueItems array data for Save VTT File
 		 */
 		function importCaptions(dataList) {
-			if (!templateComp || !captionComp) {
+			if (!templateComp || !captionLayer) {
 				findTemplateComp();
 			}
 
 			var text = '';
 			var txtArray = [];
-			var time = 0.1;// start time
+			var time = 0.01;// start time
 			var factor = 0.38;// estimated
 			var duration = factor;// word count * factor
 			
@@ -316,25 +315,16 @@
 
 					// create undo group
 					app.beginUndoGroup('Create Text Layers From File');
-					// reset data
-					dataList.removeAll();
-					cueItems = [];
 					// rename captionLayer to Captions - FILENAME
+                    // remove keyframes
 					try {
-						if (captionLayer && captionComp.numLayers > 1) {
-							// remove existing TextLayers and Markers from end to beginning
-							var count = captionComp.numLayers;
+						if (captionLayer && captionLayer.sourceText.numKeys > 0) {
+							// remove existing keyframes on TextLayer from end to beginning
+							var count = captionLayer.sourceText.numKeys;
 							//alert('import: '+count+' : '+captionLayer.name);// OK
-							if (count > 1) {
-								for (var i=1; i<count; i++) {
-									captionComp.layers[count - i].remove();// TextLayer
-								}
-
-								count = captionLayer.property('Marker').numKeys;
-								for (i=count; i>0; i--) {
-									captionLayer.property('Marker').removeKey(i);
-								}
-							}
+                            for (i=count; i>0; i--) {
+                                captionLayer.sourceText.removeKey(i);
+                            }
 						}
 					} catch(err) { alert('import ERROR: '+err.toString()); }
 					// make sure the Display Type is TIMECODE for exporting vtt
@@ -342,55 +332,33 @@
 					if (displayType == 2013) {
 						app.project.timeDisplayType = 2012;// TIMECODE=2012, FRAMES=2013
 					}
+                    // reset data
+					dataList.removeAll();
+					cueItems = [];
 
 					// create Marker and TextLayer for each line of text
 					for (i=0; i<txtArray.length; i++) {
 						try {
 							// calc factor? templateComp.workAreaDuration / total lines?
-							// calculate duration from text length?
-							// duration = Math.round(count.length * factor);
-							// based on Rob's cadence
+							// calculate duration from text length based on Rob's cadence
 							var count = txtArray[i].split(' ');
 							if (count.length == 0 ) {
 								duration = factor;
 							} else {
-								duration = Math.round(count.length * factor) - factor;
+								duration = Math.round(count.length * factor);
 							}
 
-							captionText = captionComp.layers.addBoxText([1280, 120]);
-							captionText.position.setValue([640, 660]);
-							captionText.inPoint = time;// seconds
-							captionText.outPoint = time + duration;
-
-							var txt = captionText.sourceText.value;
-							txt.resetCharStyle();
-							// txt.resetParagraphStyle();
-							txt.boxTextSize = [1280, 110];
+							// add keyframes to the captionLayer SourceText
+							// add keyframe at time NOTE: will not have a duration?
+							var txt = captionLayer.sourceText.value;
 							txt.text = txtArray[i];
-							txt.font = 'MyriadPro-Regular';
-							txt.fontSize = 36;
-							txt.fillColor = [1, 1, 1];
-							txt.applyFill = true;
-							txt.leading = 40;// line height
-							txt.tracking = 50;// character width
-							txt.justification = ParagraphJustification.CENTER_JUSTIFY;
-							captionText.sourceText.setValue(txt);
-
-							// comp marker on Template timeline
-							var marker = new MarkerValue('Caption Text');
-							marker.comment = txtArray[i];
-							marker.time = time;
-							marker.duration = duration;// dont overlap
-							marker.label = labelColor;
-							// templateComp.markerProperty.setValueAtTime(time, marker);
-							// captionComp.markerProperty.setValueAtTime(time, marker);
-							// captionText.property('Marker').setValueAtTime(time, marker);
-							captionLayer.property('Marker').setValueAtTime(time, marker);
+							//captionLayer.sourceText.setValueAtKey(1, newTextDocument("keynumber1"));
+							captionLayer.sourceText.setValueAtTime(time, txt);
 
 							// update dataList: ['#', 'Start', 'Caption']
 							var listItem = dataList.add('item', (1+cueItems.length));// display marker data
 							listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);
-							listItem.subItems[1].text = txtArray[i];// JSON.stringify(txtArray[i]); ???
+							listItem.subItems[1].text = txtArray[i];// JSON.stringify(txtArray[i]);
 
 							// data for export to vtt file id=comment, start=time, end=start+duration, text = settings
 							var cueObj = {};// construct data for vtt file
@@ -400,12 +368,11 @@
 							cueObj.note = txtArray[i];//compMarker.comment;//curItem.markerProperty.keyValue(m).comment;
 							cueObj.time = time;// set templateComp.time when dataList.row is selected
 							cueObj.compIndex = templateIndex;//templateComp.index for app.project.items(index)
-							cueObj.captionText = captionText;// TextLayer
-							cueObj.marker = marker;
+							//cueObj.captionText = captionText;// TextLayer
+							//cueObj.marker = marker;
 
 							cueItems.push(cueObj);
-							// time = time+duration+0.01;// next inPoint
-							time = time + duration + factor;// next inPoint
+							time = time + duration;// next inPoint
 						} catch(err) {
 							app.endUndoGroup();
 							app.project.timeDisplayType = displayType;// reset to original setting
@@ -435,112 +402,70 @@
 					alert('There are no markers on the Template comp timeline.');
 					return;
 				}
-				//alert('problem: added captionLayer here');
+				alert('problem: added captionLayer here');
 			}
-			if (templateComp) {
-				//alert('getMarkers: '+dataList.items.length);
-				//alert('comp frameRate '+Math.round(templateComp.frameRate)+' : '+templateComp.frameRate);
 
-				app.beginUndoGroup('Refresh Markers');
-				// ToDo: if cueItems.length, stash and re-instate cueItem.settings
-				dataList.removeAll();
-				cueItems = [];
-                // make sure the Display Type is TIMECODE for exporting vtt
-                var displayType = app.project.timeDisplayType;
-				if (displayType === 2013) {
-					app.project.timeDisplayType = 2012;// TIMECODE=2012, FRAMES=2013
-				}
+            app.beginUndoGroup('Refresh Keyframes');
+            // ToDo: if cueItems.length, stash and re-instate cueItem.settings
+            dataList.removeAll();
+            cueItems = [];
+            // make sure the Display Type is TIMECODE for exporting vtt
+            var displayType = app.project.timeDisplayType;
+            if (displayType === 2013) {
+                app.project.timeDisplayType = 2012;// TIMECODE=2012, FRAMES=2013
+            }
 
-				try {
-				var count = captionComp.layers.length;// -solid layer
-				var marks = captionLayer.property('Marker').numKeys;
-				if (marks > 0) {
-					for (var m = 1; m <= marks; m++) {
-						var cueObj = {};// construct data for vtt file
-						//var frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
-						//var marker = templateComp.markerProperty.keyValue(m);
-						var marker = captionLayer.property('Marker').keyValue(m);
-						var listItem = dataList.add('item', m);// display marker data
-						listItem.subItems[1].text = marker.comment;// keyComment(m)?
+            try {
+                // var count = captionComp.layers.length;// -solid layer
+                var marks = captionLayer.sourceText.numKeys;
+                if (marks > 0) {
+                    for (var m = 1; m <= marks; m++) {
+                        var cueObj = {};// construct data for vtt file
+                        //var frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
+                        var marker = captionLayer.sourceText.keyValue(m);
+                        var listItem = dataList.add('item', m);// display marker data
+                        listItem.subItems[1].text = marker.text;
 
-						var time = captionLayer.property('Marker').keyTime(m);// NOT: .keyValue(m).time;
-						var duration = captionLayer.property('Marker').keyValue(m).duration;
-						if (time) {
-							listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);// start
-							// data for export to vtt file id=#, start=time, end=duration, text=comment
-							cueObj.id = cueItems.length;
-							cueObj.start = timeToCurrentFormat(time, frameRate);
-							cueObj.end = timeToCurrentFormat(time+duration, frameRate);
-							cueObj.note = marker.comment;// caption text
-							cueObj.time = time;// set templateComp.time when dataList.row is selected
-							cueObj.compIndex = templateIndex;//templateComp.index for app.project.items(index)
-							cueObj.captionText = captionComp.layers[count - m];// update TextLayer
-							cueObj.marker = marker;// to edit marker comment
-							// adjust TextLayer to marker time
-							captionComp.layers[count - m].inPoint = time;// seconds
-							captionComp.layers[count - m].outPoint = time + duration;
-						} else { alert('if (time) is necessary!'); }
+                        var time = captionLayer.sourceText.keyTime(m);// NOT: .keyValue(m).time;
+                        var duration = captionLayer.workAreaDuration - time;//property('Marker').keyValue(m).duration;
+                        if (m < marks) {
+                            duration = captionLayer.sourceText.keyTime(m+1) - time;// next keyframe start
+                        }
+                        if (time) {
+                            listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);// start
+                            // data for export to vtt file id=#, start=time, end=duration, text=comment
+                            cueObj.id = cueItems.length;
+                            cueObj.start = timeToCurrentFormat(time, frameRate);
+                            cueObj.end = timeToCurrentFormat(time+duration, frameRate);
+                            cueObj.note = marker.comment;// caption text
+                            cueObj.time = time;// set templateComp.time when dataList.row is selected
+                            cueObj.compIndex = templateIndex;//templateComp.index for app.project.items(index)
+                            // cueObj.captionText = captionComp.layers[count - m];// update TextLayer
+                            // cueObj.marker = marker;// to edit marker comment
+                        } else { alert('if (time) is necessary!'); }
 
-						cueItems.push(cueObj);
-					}
+                        cueItems.push(cueObj);
+                    }
                     app.project.timeDisplayType = displayType;// reset
-					app.endUndoGroup();
-				} else {
-					alert('There are no markers on the Template timeline.');
-				}
-
-				} catch(err) { alert('findMarkers ERROR: '+err.toString()); }
-			}
+                    app.endUndoGroup();
+                } else {
+                    alert('There are no markers on the Template timeline.');
+                }
+            } catch(err) { alert('findMarkers ERROR: '+err.toString()); }
 		}
 
 		// Insert a Marker at templateComp.time
 		function addMarker(dataList) {
-			if (!templateComp || !captionComp) {
+			if (!templateComp || !captionLayer) {
 				findTemplateComp();
 			}
 			if (templateComp) {
 				app.beginUndoGroup('Add New Marker');
-				var compMarker = new MarkerValue('Caption Text');
-				// Todo: set marker comment to selected type
-				// compMarker.comment = 'Caption';
-				compMarker.comment = 'Add Caption Text Here';
-				compMarker.time = templateComp.time;
-				compMarker.duration = 1.14;// ToDo: duration
-				compMarker.label = labelColor;// 3 aqua
-				try {
-					//captionLayer.markerProperty.setValueAtTime(templateComp.time, compMarker);
-					captionLayer.property('Marker').setValueAtTime(templateComp.time, compMarker);
-				} catch(err) { alert('addMarker ERROR: '+err.toString()); }
-				//templateComp.markerProperty.setValueAtTime(templateComp.time, compMarker);
-
-				// add markers to captionText layer
-				captionText = captionComp.layers.addBoxText([1280, 120]);
-				captionText.position.setValue([640, 660]);
-				// calculate duration from text length?
-				captionText.inPoint = templateComp.time;// seconds
-				captionText.outPoint = templateComp.time + 10;// layer.inPoint + duration;
-
-				var txt = captionText.sourceText.value;
-				txt.resetCharStyle();
-				// txt.resetParagraphStyle();
-				txt.boxTextSize = [1280, 110];
-				txt.text = 'Add Caption Text';
-				txt.font = 'MyriadPro-Regular';
-				txt.fontSize = 36;
-				txt.fillColor = [1, 1, 1];
-				txt.applyFill = true;
-				txt.leading = 40;// line height
-				txt.tracking = 50;// character width
-				txt.justification = ParagraphJustification.CENTER_JUSTIFY;
-				captionText.sourceText.setValue(txt);
-
-				// TextLayer layer marker?
-				// var marker = new MarkerValue('Caption Text');
-				// marker.comment = 'Caption';
-				// marker.time = 0;//templateComp.time;
-				// marker.duration = 10;// ToDo: duration
-				// marker.label = labelColor;
-				// captionText.property('Marker').setValueAtTime(captionText.inPoint, marker);
+                var time = templateComp.time;// current time
+                //var txt = captionLayer.sourceText.getValueAtTime(time);// nearest?
+                var txt = captionLayer.sourceText.value;// main
+                txt.text = 'Add Caption Text Here';
+                captionLayer.sourceText.setValueAtTime(time, txt);
 
 				// make sure the Display Type is TIMECODE for exporting vtt
                 var displayType = app.project.timeDisplayType;
@@ -549,9 +474,8 @@
 				}
 
 				// update dataList: ['#', 'Cue', 'Start', 'Caption']
-                var frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
-				var time = templateComp.time;// current time
-				var listItem = dataList.add('item', (1+cueItems.length));// display marker data
+                //var frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
+				var listItem = dataList.add('item', (1+cueItems.length));
 				listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);
 				listItem.subItems[1].text = compMarker.comment;//curItem.markerProperty.keyValue(m).comment;// keyComment(m)?
 
@@ -563,8 +487,8 @@
 				cueObj.note = 'Add Caption Text';//compMarker.comment;//curItem.markerProperty.keyValue(m).comment;
 				cueObj.time = time;// set templateComp.time when dataList.row is selected
 				cueObj.compIndex = templateIndex;//templateComp.index for app.project.items(index)
-				cueObj.captionText = captionText;// TextLayer
-				cueObj.marker = marker;
+				// cueObj.captionText = captionText;// TextLayer
+				// cueObj.marker = marker;
 
 				cueItems.push(cueObj);
 				//alert('marker added:', JSON.stringify(cueObj));
@@ -590,8 +514,8 @@
 			}
 			if (!captionLayer) {
 				captionLayer = templateComp.layer(1);
-				if (captionLayer.name != 'Captions' || captionLayer.property('Marker').numKeys == 0) {
-					alert('There are no markers on the Template [Captions] timeline.');
+				if (captionLayer.name != 'Captions' || captionLayer.sourceText.numKeys == 0) {
+					alert('There are no keyframes on the Captions timeline.');
 					return;
 				}
 				alert('problem: added captionLayer here');
@@ -612,13 +536,13 @@
 					app.beginUndoGroup('Delete Marker');
 					if (selectedIndex == markerIndex) {
 						// remove marker, TextLayer and adjust cueItems[]
-						captionLayer.property('Marker').removeKey(selectedIndex);
+						captionLayer.sourceText.removeKey(selectedIndex);
 						captionComp.layers[captionComp.numLayers - selectedIndex].remove();
 						cueItems = cueItems.splice(selectedIndex, 1);
 						refreshListBox();
 					} else {
 						// comfirm which marker // subString? // replace instruction dialog?
-						var btnText1 = captionLayer.property('Marker').keyValue(markerIndex).comment;
+						var btnText1 = captionLayer.sourceText.keyValue(markerIndex).comment;
 						var dlg = new Window('dialog', 'Select which marker');
 						dlg.btnPnl = dlg.add('panel', undefined, 'Select which marker:');
 						dlg.btnPnl.size = [450, 280];
@@ -640,7 +564,7 @@
 							// alert('Marker at templateComp.time? '+markerIndex);
 							dlg.close();
 							// marker at templateComp.time
-							captionLayer.property('Marker').removeKey(markerIndex);
+							captionLayer.sourceText.removeKey(markerIndex);
 							captionComp.layers[captionComp.numLayers - markerIndex].remove();
 							cueItems = cueItems.splice(markerIndex, 1);
 							refreshListBox();
@@ -691,6 +615,7 @@
 			}
 
 			findMarkers();// refresh cueItems
+            captionLayer.visible = false;// hide captionLayer
 			var count = cueItems.length;
 			// 1000 milliseconds divided by 29.97 fps = 33.3667
 			var msFPS = 1000/templateComp.frameRate;
