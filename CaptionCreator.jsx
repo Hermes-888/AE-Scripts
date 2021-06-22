@@ -23,20 +23,17 @@
 
 		var templateComp;// the Template composition
 		var templateIndex;// set by findTemplate item(index)
-		var captionComp;// captions layer solid, text and markers
 		var captionLayer;// [Captions] layer on Template, add markers, toggle enabled? 
-		var hasCaptions = false;// true if captionComp was added to TemplateComp
-		var captionText;// selected visible caption TextLayer
-		var captionMarker;// selected layer marker on captionLayer [Captions]
+		var hasCaptions = false;// true if captionLayer was added to TemplateComp
 		var frameRate;// of templateComp
 		// selected item and index of the clicked ListBox row for editing
 		var selectedItem = null;
 		var selectedIndex = null;
 		//var markerArray = [];// array of marker objects for listBox
 		var cueItems = [];// array of cue objects
-		var labelColor = 3;// aqua, set marker color if not set already
 
-		var instructionPanel = myPanel.add('panel', undefined, undefined);
+		// ToDo: as dialog modal
+        var instructionPanel = myPanel.add('panel', undefined, undefined);
 		instructionPanel.text ='Instructions:';
 		instructionPanel.size = [450, 80];
 		instructionPanel.alignChildren = ['left','top'];
@@ -64,12 +61,10 @@
 
 				propsPanel.enabled = true;
 				// set pointer to [Captions] layer marker for noteText changes
-				//captionMarker = cueItems[selectedIndex].marker;
 				templateComp.time = cueItems[selectedIndex].time;
-				noteText.text = cueItems[selectedIndex].note;
+				noteText.text = cueItems[selectedIndex]text;
 				noteText.active = true;// focus on the edit box
 				// try {
-					// alert('captionMarker: '+captionMarker.comment);// OK
 					// alert(' cue: '+JSON.stringify(cueItems[selectedIndex].marker));
 					// captionLayer.sourceText.removeKey(1+selectedIndex);
 				// } catch(err) { alert('listChange ERROR: '+err.toString()); }
@@ -103,22 +98,12 @@
 		noteText.onChanging = function () {
 			try {
 				selectedItem.subItems[1].text = this.text;// JSON.stringify(this.text)
-				cueItems[selectedIndex].note = this.text;
-				// captionText = cueItems[selectedIndex].captionText;
+				cueItems[selectedIndex]text = this.text;
 				// update the Marker & TextLayer
 				var txt = captionLayer.sourceText.keyValue(1+selectedIndex);
 				txt.text = this.text;
 				captionLayer.sourceText.setValueAtTime(cueItems[selectedIndex].time, txt);
-				//captionMarker.comment = this.text;// doesn't UPDATE
-				//alert('TEST: '+captionMarker.duration+' : '+captionMarker.comment);// OK
-				// captionLayer.property('Marker').removeKey(1+selectedIndex);
-				// var marker = new MarkerValue('Caption Text');
-				// 	marker.comment = this.text;
-				// 	marker.time = cueItems[selectedIndex].time;
-				// 	marker.duration = captionMarker.duration;
-				// 	marker.label = labelColor;
-				// captionLayer.property('Marker').setValueAtTime(cueItems[selectedIndex].time, marker);
-				// captionMarker = captionLayer.property('Marker').keyValue(selectedIndex);
+
 			} catch(err) { alert('noteText ERROR: '+err.toString()); }
 			refreshListBox();
 		}
@@ -129,7 +114,7 @@
 		var btnGrp1 = buttonPanel.add('group', undefined, {name: 'btnGrp1'});
 		btnGrp1.orientation = 'row';
 
-		// import text file to generate CaptionComp
+		// import text file to generate captions
 		var importCaptionsBtn = btnGrp1.add('button', undefined, 'Import Captions');
 		importCaptionsBtn.helpTip = 'Open a Text file to generate captions.';
 		importCaptionsBtn.onClick = function () {
@@ -316,10 +301,9 @@
 					// create undo group
 					app.beginUndoGroup('Create Text Layers From File');
 					// rename captionLayer to Captions - FILENAME
-                    // remove keyframes
+                    // remove existing keyframes on TextLayer from end to beginning
 					try {
 						if (captionLayer && captionLayer.sourceText.numKeys > 0) {
-							// remove existing keyframes on TextLayer from end to beginning
 							var count = captionLayer.sourceText.numKeys;
 							//alert('import: '+count+' : '+captionLayer.name);// OK
                             for (i=count; i>0; i--) {
@@ -336,7 +320,7 @@
 					dataList.removeAll();
 					cueItems = [];
 
-					// create Marker and TextLayer for each line of text
+					// create a keyframe on TextLayer for each line of text
 					for (i=0; i<txtArray.length; i++) {
 						try {
 							// calc factor? templateComp.workAreaDuration / total lines?
@@ -356,23 +340,20 @@
 							captionLayer.sourceText.setValueAtTime(time, txt);
 
 							// update dataList: ['#', 'Start', 'Caption']
-							var listItem = dataList.add('item', (1+cueItems.length));// display marker data
+							var listItem = dataList.add('item', (1+cueItems.length));
 							listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);
-							listItem.subItems[1].text = txtArray[i];// JSON.stringify(txtArray[i]);
+							listItem.subItems[1].text = txtArray[i];
 
-							// data for export to vtt file id=comment, start=time, end=start+duration, text = settings
+							// data for export to vtt file id=comment, start=time, end=start+duration, text
 							var cueObj = {};// construct data for vtt file
 							cueObj.id = cueItems.length;
 							cueObj.start = timeToCurrentFormat(time, frameRate);
 							cueObj.end = timeToCurrentFormat(time+duration, frameRate);// fixed duration
-							cueObj.note = txtArray[i];//compMarker.comment;//curItem.markerProperty.keyValue(m).comment;
+							cueObj.text = txtArray[i];//compMarker.comment;//curItem.markerProperty.keyValue(m).comment;
 							cueObj.time = time;// set templateComp.time when dataList.row is selected
-							cueObj.compIndex = templateIndex;//templateComp.index for app.project.items(index)
-							//cueObj.captionText = captionText;// TextLayer
-							//cueObj.marker = marker;
 
 							cueItems.push(cueObj);
-							time = time + duration;// next inPoint
+							time = time + duration;// next keyframe
 						} catch(err) {
 							app.endUndoGroup();
 							app.project.timeDisplayType = displayType;// reset to original setting
@@ -391,7 +372,7 @@
 		}
 
 		/**
-		 * Refresh cueItems, dataList and TextLayers
+		 * Refresh cueItems, dataList and TextLayers in sequence
 		 * adjust IN/OUT points of TextLayers
 		 */
 		function findMarkers(dataList) {
@@ -406,7 +387,6 @@
 			}
 
             app.beginUndoGroup('Refresh Keyframes');
-            // ToDo: if cueItems.length, stash and re-instate cueItem.settings
             dataList.removeAll();
             cueItems = [];
             // make sure the Display Type is TIMECODE for exporting vtt
@@ -416,32 +396,29 @@
             }
 
             try {
-                // var count = captionComp.layers.length;// -solid layer
                 var marks = captionLayer.sourceText.numKeys;
                 if (marks > 0) {
                     for (var m = 1; m <= marks; m++) {
                         var cueObj = {};// construct data for vtt file
                         //var frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
-                        var marker = captionLayer.sourceText.keyValue(m);
-                        var listItem = dataList.add('item', m);// display marker data
-                        listItem.subItems[1].text = marker.text;
+                        var textDocument = captionLayer.sourceText.keyValue(m);
+                        var listItem = dataList.add('item', m);// display caption text
+                        listItem.subItems[1].text = textDocument.text;
 
-                        var time = captionLayer.sourceText.keyTime(m);// NOT: .keyValue(m).time;
-                        var duration = captionLayer.workAreaDuration - time;//property('Marker').keyValue(m).duration;
+                        var time = captionLayer.sourceText.keyTime(m);
+                        var nextFrame = captionLayer.workAreaDuration;// end of timeline
                         if (m < marks) {
-                            duration = captionLayer.sourceText.keyTime(m+1) - time;// next keyframe start
+                            nextFrame = captionLayer.sourceText.keyTime(m+1);// next keyframe start
                         }
                         if (time) {
                             listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);// start
-                            // data for export to vtt file id=#, start=time, end=duration, text=comment
+                            // data for export to vtt file id=#, start=time, end=nextFrame, text=comment
                             cueObj.id = cueItems.length;
                             cueObj.start = timeToCurrentFormat(time, frameRate);
-                            cueObj.end = timeToCurrentFormat(time+duration, frameRate);
-                            cueObj.note = marker.comment;// caption text
+                            cueObj.end = timeToCurrentFormat(nextFrame, frameRate);
+                            cueObj.text = textDocument.text;// caption text
                             cueObj.time = time;// set templateComp.time when dataList.row is selected
-                            cueObj.compIndex = templateIndex;//templateComp.index for app.project.items(index)
-                            // cueObj.captionText = captionComp.layers[count - m];// update TextLayer
-                            // cueObj.marker = marker;// to edit marker comment
+                            // cueObj.textDocument = textDocument;// to edit .text
                         } else { alert('if (time) is necessary!'); }
 
                         cueItems.push(cueObj);
@@ -467,32 +444,30 @@
                 txt.text = 'Add Caption Text Here';
                 captionLayer.sourceText.setValueAtTime(time, txt);
 
-				// make sure the Display Type is TIMECODE for exporting vtt
-                var displayType = app.project.timeDisplayType;
-				if (displayType === 2013) {
-					app.project.timeDisplayType = 2012;// TIMECODE=2012, FRAMES=2013
-				}
+				// // make sure the Display Type is TIMECODE for exporting vtt
+                // var displayType = app.project.timeDisplayType;
+				// if (displayType === 2013) {
+				// 	app.project.timeDisplayType = 2012;// TIMECODE=2012, FRAMES=2013
+				// }
 
-				// update dataList: ['#', 'Cue', 'Start', 'Caption']
-                //var frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
-				var listItem = dataList.add('item', (1+cueItems.length));
-				listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);
-				listItem.subItems[1].text = compMarker.comment;//curItem.markerProperty.keyValue(m).comment;// keyComment(m)?
+				// // update dataList: ['#', 'Cue', 'Start', 'Caption']
+                // //var frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
+				// var listItem = dataList.add('item', (1+cueItems.length));
+				// listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);
+				// listItem.subItems[1].text = compMarker.comment;//curItem.markerProperty.keyValue(m).comment;// keyComment(m)?
 
-				// data for export to vtt file id=comment, start=time, end=start+.05, text = settings
-				var cueObj = {};// construct data for vtt file
-				cueObj.id = cueItems.length;
-				cueObj.start = timeToCurrentFormat(time, frameRate);
-				cueObj.end = timeToCurrentFormat(time + compMarker.duration, frameRate);// fixed duration
-				cueObj.note = 'Add Caption Text';//compMarker.comment;//curItem.markerProperty.keyValue(m).comment;
-				cueObj.time = time;// set templateComp.time when dataList.row is selected
-				cueObj.compIndex = templateIndex;//templateComp.index for app.project.items(index)
-				// cueObj.captionText = captionText;// TextLayer
-				// cueObj.marker = marker;
+				// // data for export to vtt file id=comment, start=time, end=start+.05, text = settings
+				// var cueObj = {};// construct data for vtt file
+				// cueObj.id = cueItems.length;
+				// cueObj.start = timeToCurrentFormat(time, frameRate);
+				// cueObj.end = timeToCurrentFormat(time + compMarker.duration, frameRate);// fixed duration
+				// cueObj.text = 'Add Caption Text Here';
+				// cueObj.time = time;// set templateComp.time when dataList.row is selected
 
-				cueItems.push(cueObj);
-				//alert('marker added:', JSON.stringify(cueObj));
-				app.project.timeDisplayType = displayType;// reset to original setting
+				// cueItems.push(cueObj);
+				// //alert('marker added:', JSON.stringify(cueObj));
+				// app.project.timeDisplayType = displayType;// reset to original setting
+                findMarkers(dataList);// to put dataList, cueItems and keyframes into order
 				app.endUndoGroup();
 			} else {
 				alert('Template comp not found.');
@@ -509,7 +484,7 @@
 		 https://extendscript.docsforadobe.dev/user-interface-tools/defining-behavior-with-event-callbacks-and-listeners.html
 		 */
 		function deleteMarker(dataList) {
-			if (!templateComp || !captionComp) {
+			if (!templateComp || !captionLayer) {
 				findTemplateComp();
 			}
 			if (!captionLayer) {
@@ -522,29 +497,28 @@
 			}
 
 			try {
-				// selected marker OR templateComp.time
-				var marker = cueItems[selectedIndex].marker;
-				var markerIndex;// timeline
+				// selected keyframe OR templateComp.time
+				var keyframe = cueItems[selectedIndex].keyframe;
+				var keyframeIndex;// timeline
 				var timeline = templateComp.time;
 				for (var i=0; i<cueItems.length; i++) {
 					if (timeline >= cueItems[i].time) {
-						markerIndex = i;//cueItems[i].marker;
+						keyframeIndex = i;//cueItems[i].marker;
 					}
 				}
-				if (captionLayer && captionComp.numLayers > 1) {
-					// remove existing TextLayers and Markers from end to beginning
-					app.beginUndoGroup('Delete Marker');
-					if (selectedIndex == markerIndex) {
-						// remove marker, TextLayer and adjust cueItems[]
+				if (captionLayer && captionLayer.numKeys > 0) {
+					// remove existing keyframes from end to beginning
+					app.beginUndoGroup('Delete keyframe');
+					if (selectedIndex == keyframeIndex) {
+						// remove keyframe and adjust cueItems[]
 						captionLayer.sourceText.removeKey(selectedIndex);
-						captionComp.layers[captionComp.numLayers - selectedIndex].remove();
-						cueItems = cueItems.splice(selectedIndex, 1);
-						refreshListBox();
+						// cueItems = cueItems.splice(selectedIndex, 1);
+						// refreshListBox();
 					} else {
-						// comfirm which marker // subString? // replace instruction dialog?
-						var btnText1 = captionLayer.sourceText.keyValue(markerIndex).comment;
-						var dlg = new Window('dialog', 'Select which marker');
-						dlg.btnPnl = dlg.add('panel', undefined, 'Select which marker:');
+						// comfirm which keyframe // subString? // replace instruction dialog?
+						var btnText1 = captionLayer.sourceText.keyValue(keyframeIndex).text;
+						var dlg = new Window('dialog', 'Select which keyframe');
+						dlg.btnPnl = dlg.add('panel', undefined, 'Select which keyframe:');
 						dlg.btnPnl.size = [450, 280];
 						dlg.btnPnl.add('statictext', undefined, 'Caption at timeline:');
 						dlg.btnPnl.add('statictext', undefined, btnText1);
@@ -552,7 +526,7 @@
 						// ToDo: format this modal - group column? listItemObj.toString()
 						var testBtn = dlg.btnPnl.add('button', undefined, btnText1.subString(0,10));
 						testBtn.onClick = function () {
-							var confirm = dlg.confirm('Marker at templateComp.time? '+markerIndex);
+							var confirm = dlg.confirm('keyframe at templateComp.time? '+keyframeIndex);
 							confirm.onClose = function() {
 								dlg.close();// alert, confirm, prompt
 								$.writeln('text[, text...]...');// VSCode console?
@@ -561,18 +535,17 @@
 
 						var okBtn = dlg.btnPnl.add('button', undefined, 'OK', { name: 'ok' });
 						okBtn.onClick = function () {
-							// alert('Marker at templateComp.time? '+markerIndex);
+							// alert('keyframe at templateComp.time? '+keyframeIndex);
 							dlg.close();
-							// marker at templateComp.time
-							captionLayer.sourceText.removeKey(markerIndex);
-							captionComp.layers[captionComp.numLayers - markerIndex].remove();
-							cueItems = cueItems.splice(markerIndex, 1);
+							// keyframe at templateComp.time
+							captionLayer.sourceText.removeKey(keyframeIndex);
+							// cueItems = cueItems.splice(keyframeIndex, 1);
 							refreshListBox();
 						}
 
 						var cancelBtn = dlg.btnPnl.add('button', undefined, 'Cancel', { name: 'cancel' });
 						cancelBtn.onClick = function () {
-							// alert('Marker at templateComp.time? '+markerIndex);
+							// alert('keyframe at templateComp.time? '+keyframeIndex);
 							dlg.close();
 						}
 						dlg.defaultElement = okBtn;
@@ -580,7 +553,8 @@
 						dlg.center();
 						dlg.show();
 					}
-					// alert('Found: '+selectedIndex+' : '+markerIndex);
+					// alert('Found: '+selectedIndex+' : '+keyframeIndex);
+                    findMarkers(dataList);// to put dataList, cueItems and keyframes into order
 					app.endUndoGroup();
 				}
 			} catch(err) { alert('deleteMarker ERROR: '+err.toString()); }
@@ -652,12 +626,12 @@
 					timeCodeSeconds = str_out.slice(9, 11);
 					milliseconds = timeCodeSeconds * msFPS;
 					var cueEnd = timeCodeOut + '.' + milliseconds;
-					var cueText = cueItems[x].note;//JSON.stringify(cueItems[x].note);
+					var cueText = cueItems[x]text;//JSON.stringify(cueItems[x]text);
 
 					// write the results to the file
-					// if (cueItems[x].note !== '') {
-					// 	//cueItems[x].note.replace('\n', ' ');// don't allow 2 new lines
-					// 	theFile.write('Note: '+cueItems[x].note+'\r\n\n');
+					// if (cueItems[x]text !== '') {
+					// 	//cueItems[x]text.replace('\n', ' ');// don't allow 2 new lines
+					// 	theFile.write('Note: '+cueItems[x]text+'\r\n\n');
 					// }
 					theFile.write(cueItems[x].id);// cue.type
 					theFile.write('\r\n');
