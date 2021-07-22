@@ -89,9 +89,9 @@
 		//noteText.onEnterKey = noteText.onChange = 
 		noteText.onChanging = function () {
 			try {
-				var txt = this.text;
-				txt.split('\n').join('');// don't allow 2 new lines
-				txt.split('\r').join('');
+				var txt = JSON.stringify(this.text);
+				// txt.split('\n').join('');// don't allow 2 new lines
+				// txt.split('\r').join('');
 				selectedItem.subItems[1].text = txt;
 				cueItems[selectedIndex].text = this.text;
 				// update the TextLayer
@@ -348,7 +348,7 @@
 							// update dataList: ['#', 'Start', 'Caption']
 							var listItem = dataList.add('item', (1+cueItems.length));
 							listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);
-							listItem.subItems[1].text = txtArray[i];
+							listItem.subItems[1].text = JSON.stringify(txtArray[i]);
 
 							// data for export to vtt file id=comment, start=time, end=start+duration, text
 							var cueObj = {};// construct data for vtt file
@@ -414,8 +414,9 @@
 
 						var textDocument = captionLayer.sourceText.keyValue(m);
 						var txt = textDocument.text;
-						txt.split('\n').join('');// don't allow 2 new lines
-						txt.split('\r').join('');
+						txt = JSON.stringify(txt);
+						// txt.split('\n').join('');// don't allow 2 new lines
+						// txt.split('\r').join('');// not working
                         listItem.subItems[1].text = txt;//textDocument.text;
 
 						// data for export to vtt file id=#, start=time, end=nextFrame, text=comment
@@ -449,7 +450,7 @@
                 captionLayer.sourceText.setValueAtTime(time, txt);
                 app.endUndoGroup();
 				noteText.text = '';
-				findKeyframes(dataList);// to refresh and put dataList, cueItems and keyframes into order
+				findKeyframes(dataList);// to refresh dataList and put cueItems and keyframes into order
 				
 			} else {
 				alert('Template composition not found.');
@@ -478,13 +479,14 @@
 				alert('problem: added captionLayer here');
 			}
 
+			// in case it hasn't happened yet
+			findKeyframes(dataList);// refresh cueItems
+
 			try {
 				// selected keyframe OR templateComp.time
-				// var keyframe = cueItems[selectedIndex].keyframe;// unused
 				var keyframeIndex;// timeline
-				var timeline = templateComp.time;
 				for (var i=0; i<cueItems.length; i++) {
-					if (timeline >= cueItems[i].time) {
+					if (templateComp.time >= cueItems[i].time) {
 						keyframeIndex = i;
 						continue;
 					}
@@ -495,51 +497,61 @@
 					//$.writeln('Found: '+selectedIndex+' : '+keyframeIndex);// VSCode console?
 					//alert('Found: '+selectedIndex+' : '+keyframeIndex);
 					app.beginUndoGroup('Delete keyframe');
-					if (selectedIndex == keyframeIndex) {
+					if (selectedIndex === keyframeIndex) {
 						// remove keyframe and adjust cueItems[]
 						captionLayer.sourceText.removeKey(1+selectedIndex);
-						// cueItems = cueItems.splice(selectedIndex, 1);
-						// refreshListBox();
-						//alert('Deleted?> '+selectedIndex+' : '+JSON.stringify(captionLayer.sourceText.keyValue(selectedIndex)));
 					} else {
 						// comfirm which keyframe to delete
-						var btnText1 = captionLayer.sourceText.keyValue(1+selectedIndex).text;
-						var btnText2 = captionLayer.sourceText.keyValue(1+keyframeIndex).text;
-						var dlg = new Window('dialog', 'Delete keyframe');
-						dlg.btnPnl = dlg.add('panel', undefined, 'Select which keyframe to delete:');
-						dlg.btnPnl.size = [450, 280];
-						//dlg.btnPnl.add('statictext', undefined, 'Caption at timeline: '+selectedIndex+' keyframeIndex: '+keyframeIndex);
-
-						var selectedBtn = dlg.btnPnl.add('button', undefined, btnText1, { name: 'btn1' });
-						selectedBtn.onClick = function () {
-							// alert('keyframe at templateComp.time? '+keyframeIndex);
-							dlg.close();
-							noteText.text = '';
-							noteText.active = false;
-							captionLayer.sourceText.removeKey(1+selectedIndex);
+						// var regex = /(\r\n|\r|\n)/gm;// global multiline
+						var beforeText = captionLayer.sourceText.keyValue(1+keyframeIndex).text;
+							beforeText = JSON.stringify(beforeText);// looks better
+							// beforeText.replace('\"', '');// not working
+							// beforeText.split('\r').join(' - ');// not working
+							// beforeText.replace(regex,' - ');// not working
+						var afterText = '';
+						if (1+keyframeIndex < cueItems.length) {
+							afterText = captionLayer.sourceText.keyValue(2+keyframeIndex).text;// if it exists
+							afterText = JSON.stringify(afterText);
+							// afterText.replace(regex, ' ');// not working
 						}
 
-						var timelineBtn = dlg.btnPnl.add('button', undefined, btnText2, { name: 'btn2' });
-						timelineBtn.onClick = function () {
-							// alert('keyframe at templateComp.time? '+keyframeIndex);
-							dlg.close();// keyframe at templateComp.time
-							noteText.text = '';
-							noteText.active = false;
+						if (!afterText) {
+							// if beforeText is the last keyframe, proceed with delete
 							captionLayer.sourceText.removeKey(1+keyframeIndex);
-						}
+						} else {
+							var dlg = new Window('dialog', 'Delete keyframe');
+							dlg.btnPnl = dlg.add('panel', undefined, 'Select which keyframe to delete:');
+							dlg.btnPnl.size = [450, 180];
+							//dlg.btnPnl.add('statictext', undefined, 'Caption at timeline: '+selectedIndex+' keyframeIndex: '+keyframeIndex);
+							// dlg.btnPnl.add('statictext', undefined, 'Caption: '+beforeText+' Index: '+keyframeIndex);
+							// alert('btnText: '+beforeText);
 
-						var cancelBtn = dlg.btnPnl.add('button', undefined, 'Cancel', { name: 'cancel' });
-						cancelBtn.onClick = function () {
-							dlg.close();
+							var beforeBtn = dlg.btnPnl.add('button', undefined, beforeText, { name: 'btn1' });
+							beforeBtn.onClick = function () {
+								dlg.close();
+								noteText.text = '';
+								noteText.active = false;
+								captionLayer.sourceText.removeKey(1+keyframeIndex);
+							}
+							var afterBtn = dlg.btnPnl.add('button', undefined, afterText, { name: 'btn2' });
+							afterBtn.onClick = function () {
+								dlg.close();
+								noteText.text = '';
+								noteText.active = false;
+								captionLayer.sourceText.removeKey(2+keyframeIndex);
+							}
+							var cancelBtn = dlg.btnPnl.add('button', undefined, 'Cancel', { name: 'cancel' });
+							cancelBtn.onClick = function () {
+								dlg.close();
+							}
+							dlg.cancelElement = cancelBtn;
+							dlg.center();
+							dlg.show();
 						}
-						//dlg.defaultElement = okBtn;
-						dlg.cancelElement = cancelBtn;
-						dlg.center();
-						dlg.show();
 					}
 
 					app.endUndoGroup();
-                    findKeyframes(dataList);// to refresh and put put dataList, cueItems and keyframes into order
+                    findKeyframes(dataList);// to refresh dataList and put cueItems and keyframes into order
 				}
 			} catch(err) { alert('deleteMarker ERROR: '+err.toString()); }
 		}
@@ -556,6 +568,35 @@
 			}
 		}
 		/**
+		 * usage: var cueStart = convertTimecode(cueItems[x].start);
+		 * @param timeStr String - from: '00:00:06:23'
+		 * @returns String - to: '00:00:06.872'
+		 */
+		function convertTimecode(timeStr) {
+			// 1000 milliseconds divided by 29.97 fps = 33.3667
+			var msFPS = 1000/templateComp.frameRate;
+			var timeCode = timeStr.slice(0, 8);// 00:00:06
+			var timeCodeFrames = timeStr.slice(9, 11);// 23 frames
+			var milliseconds = Math.round(parseFloat(timeCodeFrames * msFPS)).toFixed(3);
+
+			if (milliseconds == 0) {
+				milliseconds = '000';// fix: 00:00:06.0.0
+				return timeCode + '.' + milliseconds;
+			}
+			if (milliseconds < 100) {
+				milliseconds = '0'+milliseconds;// fix: 00:00:06.33.
+			}
+
+			milliseconds = milliseconds.toString();
+			if (milliseconds.length > 3) {
+				milliseconds = milliseconds.slice(0, 3);// fix: 00:00:06.123.345
+				return timeCode + '.' + milliseconds;
+			}
+
+			alert('convertTimecode milliseconds fix failed: '+milliseconds);// shouldn't happen
+			return timeCode + '.' + milliseconds;
+		}
+		/**
 		 * Refresh data from adjusted captionLayer keyframes
 		 * convert keyframes to webVTT cue data
 		 * Export .vtt captions file in the project folder
@@ -568,16 +609,17 @@
 							"\"Allow Scripts to Write Files and Access Network\"");
 					return;
 				}
+
+				findKeyframes(dataList);// refresh cueItems
 				if (cueItems.length === 0) {
 					alert('There are no keyframes to export!');
 					return;
 				}
 
-				findKeyframes(dataList);// refresh cueItems
 				captionLayer.visible = false;// hide captionLayer
 				var count = cueItems.length;
 				// 1000 milliseconds divided by 29.97 fps = 33.3667
-				var msFPS = 1000/templateComp.frameRate;
+				// var msFPS = 1000/templateComp.frameRate;
 				var theFile = File.saveDialog('Save the file.', '*.vtt', 'TEXT vtt');
 			} catch(err){alert('saveVtt ERROR: ' + err.toString());}
 
@@ -587,13 +629,11 @@
 				theFile.encoding = 'UTF-8';
 
 				if (app.project.file) {
-					theFile.write('WEBVTT ');
-					theFile.write('interactive cues for ' + app.project.file.name + '\r\n');
+					theFile.write('WEBVTT ');// WEBVTT Kind: captions; Language: en
+					theFile.write('captions for ' + app.project.file.name + '\n\n');
 				} else {
-					theFile.write('WEBVTT \r\n');
+					theFile.write('WEBVTT \n\n');
 				}
-
-				theFile.write('kind: captions' + '\r\n\n\n');
 
 				/**
 				 * for each keyframe
@@ -602,39 +642,17 @@
 				 * 00:00:00:00 --> 00:00:06:00
 				 */
 				for (var x = 0; x < count; x++) {
-					var str_in = cueItems[x].start;
-					var timeCodeIn = str_in.slice(0, 8);// 00:00:06
-					var timeCodeSeconds = str_in.slice(9, 11);// 23
-					var milliseconds = (timeCodeSeconds * msFPS).toFixed(3);
-					if (parseFloat(milliseconds) === 0) {
-						milliseconds = '000';
-					}
-					if (milliseconds.length > 3) {
-						milliseconds = milliseconds.slice(0, 3);
-					}
-					var cueStart = timeCodeIn + '.' + milliseconds;
-
-					var str_out = cueItems[x].end;
-					var timeCodeOut = str_out.slice(0, 8);
-					timeCodeSeconds = str_out.slice(9, 11);
-					milliseconds = (timeCodeSeconds * msFPS).toFixed(3);
-					if (parseFloat(milliseconds) === 0) {
-						milliseconds = '000';
-					}
-					if (milliseconds.length > 3) {
-						milliseconds = milliseconds.slice(0, 3);
-					}
-					var cueEnd = timeCodeOut + '.' + milliseconds;
-					var cueText = cueItems[x].text;//JSON.stringify(cueItems[x]text);
+					var cueStart = convertTimecode(cueItems[x].start);
+					var cueEnd = convertTimecode(cueItems[x].end);
 
 					theFile.write(cueItems[x].id);// cue.type
-					theFile.write('\r\n');
+					theFile.write('\n');
 					theFile.write(cueStart);
 					theFile.write(' --> ');
 					theFile.write(cueEnd);
-					theFile.write('\r\n');
-					theFile.write(cueText);// cue.text
-					theFile.write('\r\n\n');
+					theFile.write('\n');
+					theFile.write(cueItems[x].text);// cue.text
+					theFile.write('\n\n');
 				}
 
 				theFile.close();// close the text file
