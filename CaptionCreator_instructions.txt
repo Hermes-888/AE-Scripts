@@ -1,0 +1,30 @@
+Instructions for CaptionCreator.jsx 
+
+An After Effects script to generate a vtt captions file.
+
+Install the script or run it when you need it.
+https://news.productioncrate.com/how-to-install-scripts-to-after-effects-windows-and-mac/
+
+
+Usage:
+Start by creating a text file from a Storyboard. Each line of text will become a caption cue.
+
+When the After Effects project is ready, run the CaptionCreator script.
+It will open a dockable panel.
+select the Import Captions button to open the text file.
+The script will generate keyframes on a new text layer of the composition named Template.
+The builder can see what they are building in the preview panel. 
+
+Adjust the keyframes to sync the captions with the audio. 
+Select the Find Keyframes button to sync the data to the keyframes.
+
+When the captions are ready, click the Save VTT button in the script panel to generate a vtt file for captions. 
+Hide the Captions Layer so it isn't visible on the exported video and export the video. 
+
+The vtt file and final video should be kept in the same folder.
+
+
+ToDo:
+Use comp[0] if no Template is found? 
+Let the user select which comp to use with a dropdown?
+Test this in Premiere?
