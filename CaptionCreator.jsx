@@ -284,7 +284,7 @@
 			var text = '';
 			var txtArray = [];
 			var time = 0.01;// start time
-			var factor = 0.35;// estimated
+			var factor = 0.38;// estimated
 			var duration = factor;// word count * factor
 			
 			// Prompt user to select text file
@@ -305,10 +305,11 @@
 						findTemplateComp();
 					}
 
-					// var fac = templateComp.workAreaDuration/txtArray.length;
-					// var nuFactor = factor/fac;
-					// alert('factor: '+factor+' - fac: '+fac+' -- nuFactor: '+nuFactor);
-					// .38 - 5.06 -- .0749
+					// refactor
+					var fac = Math.round(templateComp.workAreaDuration / txtArray.length);
+					var diff = factor/fac;
+					factor = factor-diff;
+					// alert('factor: '+factor+' - fac: '+fac+' - diff: '+diff);
 
 					// create undo group
 					app.beginUndoGroup('Create Captions From File');
