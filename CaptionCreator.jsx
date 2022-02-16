@@ -198,14 +198,14 @@
 				dlg.center();
 				dlg.show();
 		}
-        /**
-         * Refresh the listBox by resizing it to update the list items
-         */
-        function refreshListBox() {
-            var ls = dataList.size;
-            dataList.size = [1+ls[0], 1+ls[1]];
-            dataList.size = [ls[0], ls[1]];
-        }
+		/**
+		 * Refresh the listBox by resizing it to update the list items
+		 */
+		function refreshListBox() {
+				var ls = dataList.size;
+				dataList.size = [1+ls[0], 1+ls[1]];
+				dataList.size = [ls[0], ls[1]];
+		}
 
 		/**
 		 * Set up global variables, templateComp & captionLayer
@@ -217,21 +217,21 @@
 				var curItem = app.project.items[i];
 				// check if this item is a composition
 				if (curItem instanceof CompItem && curItem.name === 'Template') {
-                    templateComp = curItem;// for addMarker button
-                    frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
-                    //curItem.openInViewer();// make sure it is open to see keyframes
+					templateComp = curItem;// for addMarker button
+					frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
+					//curItem.openInViewer();// make sure it is open to see keyframes
 
-                    try {
-                        for (var x=1; x<=templateComp.numLayers; x++) {
-                            if (templateComp.layers[x].name === 'Captions') {
-                                hasCaptions = true;
-                                captionLayer = templateComp.layers[x];
-                                captionLayer.enabled = true;
-                                btnGrp2.enabled = true;
-                                //alert('Has Captions on layer: '+x);
-                            }
-                        }
-                    } catch(err) { alert('findTemplate ERROR: '+err.toString()); }
+					try {
+						for (var x=1; x<=templateComp.numLayers; x++) {
+							if (templateComp.layers[x].name === 'Captions') {
+								hasCaptions = true;
+								captionLayer = templateComp.layers[x];
+								captionLayer.enabled = true;
+								btnGrp2.enabled = true;
+								//alert('Has Captions on layer: '+x);
+							}
+						}
+					} catch(err) { alert('findTemplate ERROR: '+err.toString()); }
 				}
 			}
 
@@ -239,36 +239,36 @@
 			if (!captionLayer && !hasCaptions) {
 				app.beginUndoGroup('Add caption layer');
 				try {
-                    // one text layer w/ keyframes on the SourceText
-                    captionLayer = templateComp.layers.addBoxText([1280, 120]);
-                    captionLayer.position.setValue([640, 660]);
-                    captionLayer.inPoint = 0;// seconds
-                    captionLayer.outPoint = templateComp.workAreaDuration;
-                    captionLayer.name = 'Captions';
+					// one text layer w/ keyframes on the SourceText
+					captionLayer = templateComp.layers.addBoxText([1280, 120]);
+					captionLayer.position.setValue([640, 660]);
+					captionLayer.inPoint = 0;// seconds
+					captionLayer.outPoint = templateComp.workAreaDuration;
+					captionLayer.name = 'Captions';
 
-                    var txt = captionLayer.sourceText.value;
-                    //txt.resetCharStyle();
-                    // txt.resetParagraphStyle();
+					var txt = captionLayer.sourceText.value;
+					// txt.resetCharStyle();
+					// txt.resetParagraphStyle();
 					txt.boxTextSize = [1280, 110];
-                    txt.text = 'Add Caption here';
-                    txt.font = 'MyriadPro-Semibold';//'Arial-Bold';// w/black stroke
-                    txt.fontSize = 36;
-                    txt.fillColor = [0, 0, 0];//[1, 1, 1];
-                    txt.applyFill = true;
+					txt.text = 'Add Caption here';
+					txt.font = 'MyriadPro-Semibold';//'Arial-Bold';// w/black stroke
+					txt.fontSize = 36;
+					txt.fillColor = [0, 0, 0];//[1, 1, 1];
+					txt.applyFill = true;
 					txt.strokeWidth = 2;// pixels
-                    txt.strokeColor = [0, 0, 0];
-                    txt.strokeOverFill = true;
-                    txt.applyStroke = true;
-                    txt.leading = 40;// line height
-                    txt.tracking = 40;// character width
-                    txt.justification = ParagraphJustification.CENTER_JUSTIFY;
-                    captionLayer.sourceText.setValue(txt);
-                    btnGrp2.enabled = true;
+					txt.strokeColor = [0, 0, 0];
+					txt.strokeOverFill = true;
+					txt.applyStroke = true;
+					txt.leading = 40;// line height
+					txt.tracking = 40;// character width
+					txt.justification = ParagraphJustification.CENTER_JUSTIFY;
+					captionLayer.sourceText.setValue(txt);
+					btnGrp2.enabled = true;
 					// https://ae-scripting.docsforadobe.dev/properties/property/
 
-                    // captionLayer.locked = true;// if locked, can I still control w/script?
-                    //alert('Captions Added: '+templateComp.​numLayers+' : '+captionLayer.name);
-                    //alert('last layer name: ' + templateComp.layer(templateComp.numLayers).name);// [White Solid 1]
+					// captionLayer.locked = true;// if locked, can I still control w/script?
+					//alert('Captions Added: '+templateComp.​numLayers+' : '+captionLayer.name);
+					//alert('last layer name: ' + templateComp.layer(templateComp.numLayers).name);// [White Solid 1]
 				} catch(err) { alert('init ERROR: '+err.toString()); }
 				app.endUndoGroup();
 			}
@@ -281,14 +281,10 @@
 		 * 	cueItems array data for Save VTT File
 		 */
 		function importCaptions(dataList) {
-			if (!templateComp || !captionLayer) {
-				findTemplateComp();
-			}
-
 			var text = '';
 			var txtArray = [];
 			var time = 0.01;// start time
-			var factor = 0.38;// estimated
+			var factor = 0.35;// estimated
 			var duration = factor;// word count * factor
 			
 			// Prompt user to select text file
@@ -305,17 +301,26 @@
 					}
 					myFile.close();
 
+					if (!templateComp || !captionLayer) {
+						findTemplateComp();
+					}
+
+					// var fac = templateComp.workAreaDuration/txtArray.length;
+					// var nuFactor = factor/fac;
+					// alert('factor: '+factor+' - fac: '+fac+' -- nuFactor: '+nuFactor);
+					// .38 - 5.06 -- .0749
+
 					// create undo group
 					app.beginUndoGroup('Create Captions From File');
 					// rename captionLayer to Captions - FILENAME
-                    // remove existing keyframes on TextLayer from end to beginning
+          // remove existing keyframes on TextLayer from end to beginning
 					try {
 						if (captionLayer && captionLayer.sourceText.numKeys > 0) {
 							var count = captionLayer.sourceText.numKeys;
 							//alert('import: '+count+' : '+captionLayer.name);// OK
-                            for (i=count; i>0; i--) {
-                                captionLayer.sourceText.removeKey(i);
-                            }
+							for (i=count; i>0; i--) {
+									captionLayer.sourceText.removeKey(i);
+							}
 						}
 					} catch(err) { alert('import ERROR: '+err.toString()); }
 					// make sure the Display Type is TIMECODE for exporting vtt
@@ -323,7 +328,7 @@
 					if (displayType == 2013) {
 						app.project.timeDisplayType = 2012;// TIMECODE=2012, FRAMES=2013
 					}
-                    // reset data
+          // reset data
 					dataList.removeAll();
 					cueItems = [];
 
@@ -382,8 +387,8 @@
 		 * adjust IN/OUT points of TextLayers
 		 */
 		function findKeyframes(dataList) {
-            try {
-				if (!captionLayer) {
+      try {
+				if (!templateComp || !captionLayer) {
 					findTemplateComp();// setup global vars
 					// captionLayer = templateComp.layer(1);
 					// alert('problem: added captionLayer here');
@@ -392,24 +397,26 @@
 					// 	return;
 					// }
 				}
-                var marks = captionLayer.sourceText.numKeys;
-				
-                if (marks > 0) {
-					dataList.removeAll();
+				var marks = captionLayer.sourceText.numKeys;
+
+				if (marks > 0) {
+					if (dataList) {
+						dataList.removeAll();
+					}
 					cueItems = [];
 					// make sure the Display Type is TIMECODE for exporting vtt
 					var displayType = app.project.timeDisplayType;
 					if (displayType === 2013) {
 						app.project.timeDisplayType = 2012;// TIMECODE=2012, FRAMES=2013
 					}
-                    for (var m = 1; m <= marks; m++) {
-                        //var frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
-                        var listItem = dataList.add('item', m);// display caption text
+					for (var m = 1; m <= marks; m++) {
+						//var frameRate = Math.round(templateComp.frameRate);// 29.97 = 30
+						var listItem = dataList.add('item', m);// display caption text
 						var time = captionLayer.sourceText.keyTime(m);
-                        var nextFrame = templateComp.workAreaDuration;// end of timeline
-                        if (m < marks) {
-                            nextFrame = captionLayer.sourceText.keyTime(m+1);// next keyframe start
-                        }
+						var nextFrame = templateComp.workAreaDuration;// end of timeline
+						if (m < marks) {
+								nextFrame = captionLayer.sourceText.keyTime(m+1);// next keyframe start
+						}
 						listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);// start
 
 						var textDocument = captionLayer.sourceText.keyValue(m);
@@ -417,7 +424,7 @@
 						txt = JSON.stringify(txt);
 						// txt.split('\n').join('');// don't allow 2 new lines
 						// txt.split('\r').join('');// not working
-                        listItem.subItems[1].text = txt;//textDocument.text;
+            listItem.subItems[1].text = txt;//textDocument.text;
 
 						// data for export to vtt file id=#, start=time, end=nextFrame, text=comment
 						var cueObj = {};// construct data for vtt file
@@ -427,13 +434,13 @@
 						cueObj.text = textDocument.text;// caption text
 						cueObj.time = time;// set templateComp.time when dataList.row is selected
 
-                        cueItems.push(cueObj);
-                    }
-                    app.project.timeDisplayType = displayType;// reset
-                } else {
-                    alert('There are no keyframes on the Template timeline.');
-                }
-            } catch(err) { alert('findKeyframes ERROR: '+err.toString()); }
+						cueItems.push(cueObj);
+					}
+						app.project.timeDisplayType = displayType;// reset
+				} else {
+						alert('There are no keyframes on the Template timeline.');
+				}
+			} catch(err) { alert('findKeyframes ERROR: '+err.toString()); }
 		}
 
 		// Insert a keyframe at templateComp.time
@@ -443,12 +450,12 @@
 			}
 			if (templateComp) {
 				app.beginUndoGroup('Add New Keyframe');
-                var time = templateComp.time;// current time
-                //var txt = captionLayer.sourceText.getValueAtTime(time);// nearest?
-                var txt = captionLayer.sourceText.value;// main
-                txt.text = 'Add Caption Text Here';
-                captionLayer.sourceText.setValueAtTime(time, txt);
-                app.endUndoGroup();
+				var time = templateComp.time;// current time
+				//var txt = captionLayer.sourceText.getValueAtTime(time);// nearest?
+				var txt = captionLayer.sourceText.value;// main
+				txt.text = 'Add Caption Text Here';
+				captionLayer.sourceText.setValueAtTime(time, txt);
+				app.endUndoGroup();
 				noteText.text = '';
 				findKeyframes(dataList);// to refresh dataList and put cueItems and keyframes into order
 				
@@ -504,10 +511,10 @@
 						// comfirm which keyframe to delete
 						// var regex = /(\r\n|\r|\n)/gm;// global multiline
 						var beforeText = captionLayer.sourceText.keyValue(1+keyframeIndex).text;
-							beforeText = JSON.stringify(beforeText);// looks better
-							// beforeText.replace('\"', '');// not working
-							// beforeText.split('\r').join(' - ');// not working
-							// beforeText.replace(regex,' - ');// not working
+						beforeText = JSON.stringify(beforeText);// looks better
+						// beforeText.replace('\"', '');// not working
+						// beforeText.split('\r').join(' - ');// not working
+						// beforeText.replace(regex,' - ');// not working
 						var afterText = '';
 						if (1+keyframeIndex < cueItems.length) {
 							afterText = captionLayer.sourceText.keyValue(2+keyframeIndex).text;// if it exists
@@ -551,7 +558,7 @@
 					}
 
 					app.endUndoGroup();
-                    findKeyframes(dataList);// to refresh dataList and put cueItems and keyframes into order
+					findKeyframes(dataList);// to refresh dataList and put cueItems and keyframes into order
 				}
 			} catch(err) { alert('deleteMarker ERROR: '+err.toString()); }
 		}
