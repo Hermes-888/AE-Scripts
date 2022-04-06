@@ -1,30 +1,53 @@
 Instructions for CaptionCreator.jsx 
 
-An After Effects script to generate a vtt captions file.
+An After Effects script to create a vtt captions file.
 
-Install the script or run it when you need it.
+Install the script as a dockable panel or run it when you need it.
 https://news.productioncrate.com/how-to-install-scripts-to-after-effects-windows-and-mac/
 
 
 Usage:
-Start by creating a text file from a Storyboard. Each line of text will become a caption cue.
+Start by creating a text file from a Storyboard. 
+Each line of text will become a keyframe on a text layer named Captions. 
 
-When the After Effects project is ready, run the CaptionCreator script.
-It will open a dockable panel.
-select the Import Captions button to open the text file.
-The script will generate keyframes on a new text layer of the composition named Template.
-The builder can see what they are building in the preview panel. 
+When the After Effects project is ready, run the CaptionCreator script. 
+It will open a dockable panel and fits nicely in the right column.
 
+Select the Import Captions button to open the text file you created for the video. 
+You can also open a .vtt captions file that was already built for the video. 
+
+The script will open a dialog panel with a list of compositions to choose from. 
+Select a compositon to continue. 
+The script will create a new text layer and generate keyframes on the composition you selected.
+This can usually take under a minute to populate the keyframes. 
+
+The text layer simulates how the final captions will look. 
 Adjust the keyframes to sync the captions with the audio. 
-Select the Find Keyframes button to sync the data to the keyframes.
 
-When the captions are ready, click the Save VTT button in the script panel to generate a vtt file for captions. 
-Hide the Captions Layer so it isn't visible on the exported video and export the video. 
+You can edit typos or change the text on the screen. 
+Make sure you are on the keyframe you want to change or you will create a new keyframe. 
+If the line of text is long, you can split the text into multiple lines. 
 
-The vtt file and final video should be kept in the same folder.
+When the captions are ready, click the Save VTT button in the script panel. 
+You will be able to select the folder and file name for the vtt captions file. 
+The vtt filename should match the video it is for.  
+The vtt files and final video should be kept in the same folder. 
+An alert box will let know if there were any errors or that the .vtt file has been created. 
 
+Remember to hide the Captions layer so it isn't visible on the exported video. 
+Or leave it visible to bake the captions into the video. Your call. 
 
-ToDo:
-Use comp[0] if no Template is found? 
-Let the user select which comp to use with a dropdown?
-Test this in Premiere?
+The vtt files and final video should be kept in the same folder. 
+
+Videos can have multiple caption files. 
+Additional caption layers can be added to the composition to create captions for other languages. 
+For example. Spanish text can be synced with an English audio track. 
+If English and Spanish vtt files are included with a video, the viewer can select either one.
+
+When you have multiple caption layers and want to export a specific language. 
+Hide the extra language layers so that only the language you want to save as a vtt file is visible. 
+If you forget to hide extra layers, you will get a dialog box to select which caption layer. 
+
+If you want to rename the Captions text layer make sure the name begins with the word Captions. 
+The script finds the caption layers by its name. 
+Example: Captions_en, Captions_es

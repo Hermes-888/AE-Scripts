@@ -2,17 +2,13 @@
 	//https://www.goodboy.ninja/snippets/dockable-scriptui-panel-template
 	// Any code you write here will execute before the panel is built.
 	/*
-		https://extendscript.docsforadobe.dev/introduction/extendscript-overview.html
 		https://ae-scripting.docsforadobe.dev/introduction/objectmodel.html
-		https://buildmedia.readthedocs.org/media/pdf/after-effects-scripting-guide/latest/after-effects-scripting-guide.pdf
+		https://ae-scripting.docsforadobe.dev/
 		https://github.com/NTProductions?tab=repositories
 
 		Visual Code for Extendscript debugging
 		https://www.youtube.com/watch?v=a90H-Pf61LQ
 		https://www.codeandmotion.com/blog/visual-studio-code-adobe-extendscript
-
-		Windows: C:\Program Files\Adobe\Adobe After Effects 2022\Support Files\Scripts\ScriptUI Panels
-		Mac OS: Applications/Adobe After Effects <version>
 	*/
 	buildUI(thisObj); // Calling the function to build the panel
 
@@ -37,32 +33,140 @@
 		var selectedIndex = null;
 		var cueItems = [];// array of cue objects
 
-		var btnGrp1 = myPanel.add('group', undefined, {name: 'btnGrp1'});
-		btnGrp1.orientation = 'column';
+		var dataPanel = myPanel.add('panel', [0, 0, 350, 160], 'Caption Creator: select a row to edit a caption');
+		dataPanel.orientation = 'column';
+
+		var dataList = dataPanel.add('ListBox', [0, 0, 340, 140], 'data', {
+			multiselect: false,
+			numberOfColumns: 3, showHeaders: true,
+			columnTitles: ['#', 'Start', 'Caption']
+		});
+		dataList.onChange = function () {
+			if (dataList.selection != null) {
+				selectedIndex = dataList.selection.index;
+				selectedItem = dataList.selection;
+
+				propsPanel.enabled = true;
+				// set pointer to [Captions] layer keyframe for noteText changes
+				selectedComp.time = cueItems[selectedIndex].time + 0.02;
+				noteText.text = cueItems[selectedIndex].text;
+				noteText.active = true;// focus on the edit box
+				// select the keyframe?
+				try {
+					if (captionLayer) {
+						// unselect all then select this keyframe
+						for (var i=1; i<=captionLayer.sourceText.numKeys; i++) {
+							captionLayer.sourceText.setSelectedAtKey(i, false);
+						}
+						captionLayer.sourceText.setSelectedAtKey(1+selectedIndex, true);
+					}
+					//alert(' cue: '+JSON.stringify(cueItems[selectedIndex]));
+				} catch(err) { alert('listChange ERROR: '+err.toString()); }
+			}
+		};
+		// dataList.onDoubleClick = function () {}
+		// dataList.revealItem(item #);// Scrolls the list to make the specified item visible, if necessary.
+
+		var propsPanel = myPanel.add('panel', undefined, undefined, {name: 'propsPanel'});
+		propsPanel.text = 'Caption Editor: select a row, edit the caption below';
+		//propsPanel.preferredSize.width = 350;
+		propsPanel.orientation = 'column';
+		// propsPanel.alignChildren = ['left','top'];
+		// propsPanel.spacing = 10;
+		// propsPanel.margins = 10;
+		propsPanel.enabled = false;// until a list item is selected
+
+		// var propsPanelRow = propsPanel.add('group', undefined, {name: 'propsRow1'});
+		// propsPanelRow.orientation = 'row';
+		// https://extendscript.docsforadobe.dev/user-interface-tools/common-properties.html?highlight=group#common-properties
+
+		// text editor
+    var noteGroup = propsPanel.add('group', undefined, {name: 'notegroup'});
+		noteGroup.orientation = 'row';
+		//noteGroup.add( 'statictext', undefined, 'Caption:');
+		var noteText = noteGroup.add( 'edittext', undefined, '', {
+			multiline: true, wantReturn: true
+		});// scrolling: true,
+		// noteText.characters = ##;
+		noteText.size = [350, 55];// 3 rows
+		noteText.onChanging = function () {
+			try {
+				var txt = JSON.stringify(this.text);
+				// txt.split('\n').join('');// don't allow 2 new lines
+				// txt.split('\r').join('');
+				selectedItem.subItems[1].text = txt;
+				cueItems[selectedIndex].text = this.text;
+				// update the TextLayer
+				var txtlayer = captionLayer.sourceText.keyValue(1+selectedIndex);
+				txtlayer.text = this.text;
+				captionLayer.sourceText.setValueAtTime(cueItems[selectedIndex].time, txtlayer);
+
+				refreshListBox();
+				//findKeyframes(dataList);// fixes double lines ERROR
+			} catch(err) { alert('noteText ERROR: '+err.toString()); }
+		}
+
+		var buttonPanel = myPanel.add('panel', undefined, 'Actions:');
+		buttonPanel.orientation = 'column';
+
+		var btnGrp1 = buttonPanel.add('group', undefined, {name: 'btnGrp1'});
+		btnGrp1.orientation = 'row';
 
 		// import text file to generate captions
 		var importCaptionsBtn = btnGrp1.add('button', undefined, 'Import Captions');
 		importCaptionsBtn.helpTip = 'Open a Text file to generate captions.';
 		importCaptionsBtn.onClick = function () {
-			importCaptions();
+			importCaptions(dataList);
 		}
 
-		var exportVTTBtn = btnGrp1.add('button', undefined, 'Save VTT File');
-		exportVTTBtn.helpTip = 'Save the captions to a vtt file.';
-		// exportVTTBtn.enabled = false;
-		exportVTTBtn.onClick = function() {
-			saveVttFile();
-		}
+		var exportBtn = btnGrp1.add('button', undefined, 'Save VTT File');
+		exportBtn.helpTip = 'Save the captions to a vtt file.';
+		//exportBtn.enabled = false;
+		exportBtn.onClick = function() {
+			saveVttFile(dataList);
+		};
 
+		// [HELP btn] instructions : Use a dialog window instead?
 		var helpBtn = btnGrp1.add('button', undefined, 'Instructions');
-		helpBtn.helpTip = 'Caption Creator Instructions.';
+		helpBtn.helpTip = 'Toggle instructions.';
 		helpBtn.onClick = function () {
 			showInstructions();
 		}
-		/* V3 
-			updates: 
-			Only display the 3 buttons, Import, Export, Instructions
 
+		// TEST:
+		var findKeyframesBtn = btnGrp1.add('button', undefined, 'Find Keyframes');
+		findKeyframesBtn.helpTip = 'Check for caption keyframes in the project.';
+		findKeyframesBtn.onClick = function() {
+			findKeyframes(dataList);// pass in dataList
+		}
+
+	/* UNUSED BUTTONS:
+		var btnGrp2 = buttonPanel.add('group', undefined, {name: 'btnGrp2'});
+		btnGrp2.orientation = 'row';
+		// btnGrp2.enabled = false;
+
+		var findKeyframesBtn = btnGrp2.add('button', undefined, 'Find Keyframes');
+		findKeyframesBtn.helpTip = 'Check for caption keyframes in the project.';
+		findKeyframesBtn.onClick = function() {
+			findKeyframes(dataList);// pass in dataList
+		}
+
+		// Insert keyframe
+		var addMarkerBtn = btnGrp2.add('button', undefined, 'Insert Keyframe');
+		addMarkerBtn.helpTip = 'Insert a new keyframe at current time.';
+		addMarkerBtn.onClick = function () {
+			addMarker(dataList);
+		}
+
+		// Delete keyframe
+		var delMarkerBtn = btnGrp2.add('button', undefined, 'Delete Keyframe');
+		delMarkerBtn.helpTip = 'Delete this keyframe.';// selected or nearest selectedComp.time
+		delMarkerBtn.onClick = function () {
+			deleteMarker(dataList);
+		}
+	*/
+		/* V2 
+			updates: 
 			Select the Comp to add captions onto from a dropdown
 			Import .vtt as well as .txt files. 
 			Allow multiple Captions layers for different languages?
@@ -74,7 +178,7 @@
 			ToDo: convert CaptionCreator to an extension
 			https://betterprogramming.pub/building-a-modern-extension-for-after-effects-eea269544b50
 
-			ToDo: detect audio pauses? to set keyframes.
+			May be able to detect audio pauses? to set keyframes.
 			https://github.com/NTProductions/lyric-music-video-generator-script/blob/main/Lyric%20Music%20Video%20Generator.jsx
 		*/
 
@@ -100,27 +204,35 @@
 				dlg.btnPnl.orientation = 'column';
 				dlg.btnPnl.size = [380, 250];
 				dlg.btnPnl.add('statictext', undefined, 'This script will simulate captions on the composition. \r');
-				dlg.btnPnl.add('statictext', undefined, 'Import a text file to generate the captions.\n');
+				dlg.btnPnl.add('statictext', undefined, 'You can import a text file to generate the captions.\n');
 				dlg.btnPnl.add('statictext', undefined, 'The script adds a text layer with keyframes.  \nEach line of text will become a new keyframe. \r');
-				dlg.btnPnl.add('statictext', undefined, 'Or add a Text Layer with Captions in the name.\n');
-				dlg.btnPnl.add('statictext', undefined, 'Adjust the timing by dragging a keyframe. \n');
-				// dlg.btnPnl.add('statictext', undefined, 'Click Find Keyframes to collect existing caption keyframes. \n');
-				dlg.btnPnl.add('statictext', undefined, 'Select Save VTT File to convert the keyframes to a vtt file. \n');
+				dlg.btnPnl.add('statictext', undefined, 'Adjust the timing by dragging a keyframe. \r');
+				dlg.btnPnl.add('statictext', undefined, 'Click Find Keyframes to collect existing caption keyframes. \r');
+				dlg.btnPnl.add('statictext', undefined, 'Select Save VTT File to convert the keyframes to a vtt file. \r');
 				dlg.btnPnl.add('statictext', undefined, 'Remember to hide the captions before exporting the video.');
 
-			var cancelBtn = dlg.btnPnl.add('button', undefined, 'OK', { name: 'ok' });
-			cancelBtn.onClick = function () {
-				dlg.close();
-			}
-			dlg.center();
-			dlg.show();
+				var cancelBtn = dlg.btnPnl.add('button', undefined, 'OK', { name: 'ok' });
+				cancelBtn.onClick = function () {
+					dlg.close();
+				}
+				dlg.center();
+				dlg.show();
 		}
+		/**
+		 * Refresh the listBox by resizing it to update the list items
+		 */
+		function refreshListBox() {
+				var ls = dataList.size;
+				dataList.size = [1+ls[0], 1+ls[1]];
+				dataList.size = [ls[0], ls[1]];
+		}
+
 		/**
 		 * Select which composition to add captions to
 		 * Set up global variables, selectedComp and frameRate
 		 * called from other functions
 		 */
-		function selectComp() {
+		 function selectComp() {
 			var comps = [];// Array of names for dropDown
 			var pid = [];// project.items[index] of selected composition
 			
@@ -135,57 +247,41 @@
 			if (comps.length == 0) {
 				alert('There are no compositions in this project.');
 				return;
-			} else {
-
-				if (comps.length == 1) {
-					selectedComp = comps[0];// only one so select it
-					selectedComp.openInViewer();// make sure it is open & active to see keyframes
-					return;
-				}
-
-				// select from a dropdown
-				var dlg = new Window('dialog', 'Select a Composition');
-				dlg.panel = dlg.add('panel', undefined, '');
-				dlg.panel.orientation = 'column';
-				dlg.panel.size = [420, 100];
-				dlg.panel.add('statictext', undefined, 'Select a composition from the dropdown.');
-				var dropDown = dlg.panel.add("dropdownlist", undefined, comps);
-				
-				dropDown.onChange = function () {
-					try {
-						// alert('selected: '+dropDown.selection.index+' :: '+dropDown.selection.text);
-						selectedPid = pid[dropDown.selection.index];// Global needed?
-						selectedComp = app.project.items[pid[dropDown.selection.index]];
-						frameRate = Math.round(selectedComp.frameRate);// 29.97 = 30
-
-						// show in viewer
-						selectedComp.openInViewer();// make sure it is open & active to see keyframes
-						// alert('selectedComp: '+selectedPid+' :: '+selectedComp.name);
-						// alert('selectedComp layer count: '+ selectedComp.numLayers);
-						dlg.close();// NOW? or give user several chances and they close the dialog modal
-					} catch(err) { alert('selectComp ERROR: '+err.toString()); }
-				}
-				dlg.show();
 			}
+
+			var dlg = new Window('dialog', 'Select a Composition');
+			dlg.panel = dlg.add('panel', undefined, '');
+			dlg.panel.orientation = 'column';
+			dlg.panel.size = [420, 100];
+			dlg.panel.add('statictext', undefined, 'A Captions layer will be added to the composition you select in the dropdown.');
+			var dropDown = dlg.panel.add("dropdownlist", undefined, comps);
+			
+			dropDown.onChange = function () {
+				try {
+					// alert('selected: '+dropDown.selection.index+' :: '+dropDown.selection.text);
+					selectedPid = pid[dropDown.selection.index];// Global needed?
+					selectedComp = app.project.items[pid[dropDown.selection.index]];
+					frameRate = Math.round(selectedComp.frameRate);// 29.97 = 30
+
+					// show in viewer
+					selectedComp.openInViewer();// make sure it is open & active to see keyframes
+					// alert('selectedComp: '+selectedPid+' :: '+selectedComp.name);
+					dlg.close();// NOW? or give user several chances and they close the dialog modal
+				} catch(err) { alert('selectComp ERROR: '+err.toString()); }
+			}
+			dlg.show();
 		}
 
 		/**
 		 * Set up global variables, selectedComp & captionLayer and frameRate
 		 * captionLayer may not exist yet
-		 * called from saveVttFile()
+		 * called from other functions, findKeyframes
 		 */
 		function findSourceComp() {
 			if (!selectedComp) {
 				selectComp();
-				if (!selectedComp) {
-					return;
-				}
 			}
 
-			findCaptionLayer();
-		}
-
-		function findCaptionLayer() {
 			try {
 				// find the Captions layer on the selected Comp, 
 				// it may not exist yet or there may be multiple. 
@@ -194,23 +290,16 @@
 				var pid = [];// selectedComp.layers[index]
 				for (var x=1; x<=selectedComp.numLayers; x++) {
 					var layerName = selectedComp.layers[x].name.substring(0, 8);
-					// alert('layerName: '+selectedComp.layers[x].enabled+' : '+layerName+' : '+selectedComp.layers[x].name);// OK
-					if (layerName == 'Captions') {
-						// check if visible
+					if (layerName === 'Captions') {
+						// check if enabled
 						if (selectedComp.layers[x].enabled) {
-							captionLayer = selectedComp.layers[x];// last encountered
-							// captionLayer.enabled = true;// = SELECTED?
+							captionLayer = selectedComp.layers[x];
+							// captionLayer.enabled = true;
 							hasCaptions = true;
-							comps.push(x+': '+selectedComp.layers[x].name);// dropdown name
+							comps.push(selectedComp.layers[x].name);
 							pid.push(x);
 						}
 					}
-				}
-				// alert('selectedComp layers: ', selectedComp.numLayers);
-				// alert('findCaptionLayer: comps.len '+comps.length);// 0
-				if (comps.length == 0) {
-					cueItems = [];
-					alert('No Captions found. Use Import Captions first.');
 				}
 
 				if (comps.length > 1) {
@@ -230,68 +319,12 @@
 					}
 					dlg.show();
 				}
-
 			} catch(err) { alert('find captionLayer ERROR: '+err.toString()); }
-		}
 
-		/**
-		 * Refresh cueItems from TextLayer keyframes on selectedComp
-		 */
-		function findKeyframes() {
-			// if (!selectedComp || !captionLayer) {
-			// 	findSourceComp();// setup global vars
-			// 	if (!selectedComp) {
-			// 		return;
-			// 	}
+			// if captionLayer doesn't exist on selectedComp, add it?
+			// if (!captionLayer && !hasCaptions) {
+				// createCaptionLayer();
 			// }
-			if (!captionLayer) {
-				alert('There are no captions in this project.');
-				return;
-			}
-			// if (captionLayer.sourceText.numKeys == 0) {
-			// 	alert('There are no keyframes on the comp timeline.');
-			// 	return;
-			// }
-
-			try {
-				var marks = captionLayer.sourceText.numKeys;
-
-				if (marks > 0) {
-					cueItems = [];
-					// make sure the Display Type is TIMECODE for exporting vtt
-					var displayType = app.project.timeDisplayType;
-					if (displayType === 2013) {
-						app.project.timeDisplayType = 2012;// TIMECODE=2012, FRAMES=2013
-					}
-					for (var m = 1; m <= marks; m++) {
-						//var frameRate = Math.round(selectedComp.frameRate);// 29.97 = 30
-						var time = captionLayer.sourceText.keyTime(m);
-						var nextFrame = selectedComp.workAreaDuration;// end of timeline
-						if (m < marks) {
-								nextFrame = captionLayer.sourceText.keyTime(m+1);// next keyframe start
-						}
-
-						var textDocument = captionLayer.sourceText.keyValue(m);
-						var txt = textDocument.text;
-						txt = JSON.stringify(txt);
-						// txt.split('\n').join('');// don't allow 2 new lines
-						// txt.split('\r').join('');// not working
-
-						// data for export to vtt file id=#, start=time, end=nextFrame, text=comment
-						var cueObj = {};// construct data for vtt file
-						cueObj.id = cueItems.length;
-						cueObj.start = timeToCurrentFormat(time, frameRate);
-						cueObj.end = timeToCurrentFormat(nextFrame, frameRate);
-						cueObj.text = textDocument.text;// caption text
-						cueObj.time = time;// set selectedComp.time
-						cueItems.push(cueObj);
-					}
-					app.project.timeDisplayType = displayType;// reset
-
-				} else {
-						alert('No caption keyframes found on the '+selectedComp.name+' timeline.');
-				}
-			} catch(err) { alert('findKeyframes ERROR: '+err.toString()); }
 		}
 
 		/**
@@ -328,6 +361,10 @@
 				captionLayer.sourceText.setValue(txt);
 				// btnGrp2.enabled = true;
 				hasCaptions = true;
+				// reset data
+				if (dataList) {
+					dataList.removeAll();
+				}
 				cueItems = [];
 				// https://ae-scripting.docsforadobe.dev/properties/property/
 
@@ -341,20 +378,15 @@
 		/**
 		 * Open a .txt file and create
 		 * 	Keyframes on captionLayer TextLayer
+		 * 	dataList items
 		 * 	cueItems array data for Save VTT File
 		 */
-		function importCaptions() {
+		function importCaptions(dataList) {
 			var text = '';
 			var txtArray = [];
 			var time = 0.01;// start time
 			var factor = 0.3;// estimated
 			var duration = factor;// txtArray[i] word count * factor
-
-			// select which comp to add captions to, can add multiple layers?
-			selectComp();
-			if (!selectedComp) {
-				return;
-			}
 			
 			// Prompt user to select text file Limit to (.txt & .vtt)
 			var myFile = File.openDialog('Select a file.', '*.txt;*.vtt');
@@ -391,6 +423,9 @@
 						return;
 					}
 
+					// select which comp to add captions to, can add multiple layers?
+					selectComp();
+
 					// set factor by duration
 					// var average = Math.round(selectedComp.workAreaDuration / (txtArray.length-1));
 					// var diff = factor/average;
@@ -415,6 +450,10 @@
 					if (displayType == 2013) {
 						app.project.timeDisplayType = 2012;// TIMECODE=2012, FRAMES=2013
 					}
+          // reset data
+					if (dataList) {
+						dataList.removeAll();
+					}
 					cueItems = [];
 					createCaptionLayer();
 
@@ -437,13 +476,19 @@
 							txt.text = txtArray[i];
 							captionLayer.sourceText.setValueAtTime(time, txt);
 
+							// update dataList: ['#', 'Start', 'Caption']
+							var listItem = dataList.add('item', (1+cueItems.length));
+							listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);
+							listItem.subItems[1].text = JSON.stringify(txtArray[i]);
+
 							// data for export to vtt file id=comment, start=time, end=start+duration, text
 							var cueObj = {};// construct data for vtt file
 							cueObj.id = cueItems.length;
 							cueObj.start = timeToCurrentFormat(time, frameRate);
 							cueObj.end = timeToCurrentFormat(time+duration, frameRate);// fixed duration
 							cueObj.text = txtArray[i];
-							cueObj.time = time;// set selectedComp.time 
+							cueObj.time = time;// set selectedComp.time when dataList.row is selected
+
 							cueItems.push(cueObj);
 							time = time + duration;// next keyframe start time
 						} catch(err) {
@@ -455,12 +500,197 @@
 
 					app.project.timeDisplayType = displayType;// reset to original setting
 					app.endUndoGroup();
-					// exportVTTBtn.enabled = true;// allow Save VTT File
 					// alert('cueItems: '+JSON.stringify(cueItems));
 				} else {
 					alert('Open File failed!');
 				}
 			}// user cancelled Open File
+		}
+
+		/**
+		 * Refresh cueItems, dataList from TextLayer keyframes on selectedComp
+		 */
+		function findKeyframes(dataList) {
+			if (!selectedComp || !captionLayer) {
+				findSourceComp();// setup global vars
+				// captionLayer = selectedComp.layer(1);
+				// alert('problem: added captionLayer here');
+			}
+			if (!captionLayer) {
+				alert('There are no captions in this project.');
+				return;
+			}
+			// if (captionLayer.sourceText.numKeys == 0) {
+			// 	alert('There are no keyframes on the comp timeline.');
+			// 	return;
+			// }
+
+			try {
+				var marks = captionLayer.sourceText.numKeys;
+
+				if (marks > 0) {
+					if (dataList) {
+						dataList.removeAll();
+					}
+					cueItems = [];
+					// make sure the Display Type is TIMECODE for exporting vtt
+					var displayType = app.project.timeDisplayType;
+					if (displayType === 2013) {
+						app.project.timeDisplayType = 2012;// TIMECODE=2012, FRAMES=2013
+					}
+					for (var m = 1; m <= marks; m++) {
+						//var frameRate = Math.round(selectedComp.frameRate);// 29.97 = 30
+						var listItem = dataList.add('item', m);// display caption text
+						var time = captionLayer.sourceText.keyTime(m);
+						var nextFrame = selectedComp.workAreaDuration;// end of timeline
+						if (m < marks) {
+								nextFrame = captionLayer.sourceText.keyTime(m+1);// next keyframe start
+						}
+						listItem.subItems[0].text = timeToCurrentFormat(time, frameRate);// start
+
+						var textDocument = captionLayer.sourceText.keyValue(m);
+						var txt = textDocument.text;
+						txt = JSON.stringify(txt);
+						// txt.split('\n').join('');// don't allow 2 new lines
+						// txt.split('\r').join('');// not working
+            listItem.subItems[1].text = txt;//textDocument.text;
+
+						// data for export to vtt file id=#, start=time, end=nextFrame, text=comment
+						var cueObj = {};// construct data for vtt file
+						cueObj.id = cueItems.length;
+						cueObj.start = timeToCurrentFormat(time, frameRate);
+						cueObj.end = timeToCurrentFormat(nextFrame, frameRate);
+						cueObj.text = textDocument.text;// caption text
+						cueObj.time = time;// set selectedComp.time when dataList.row is selected
+
+						cueItems.push(cueObj);
+					}
+					app.project.timeDisplayType = displayType;// reset
+
+				} else {
+						alert('No caption keyframes found on the '+selectedComp.name+' timeline.');
+				}
+			} catch(err) { alert('findKeyframes ERROR: '+err.toString()); }
+		}
+
+		// Insert a keyframe at selectedComp.time
+		function addMarker(dataList) {
+			if (!selectedComp || !captionLayer) {
+				findSourceComp();
+			}
+			if (selectedComp) {
+				app.beginUndoGroup('Add New Keyframe');
+				var time = selectedComp.time;// current time
+				//var txt = captionLayer.sourceText.getValueAtTime(time);// nearest?
+				var txt = captionLayer.sourceText.value;// main
+				txt.text = 'Add Caption Text Here';
+				captionLayer.sourceText.setValueAtTime(time, txt);
+				app.endUndoGroup();
+				noteText.text = '';
+				findKeyframes(dataList);// to refresh dataList and put cueItems and keyframes into order
+				
+			} else {
+				alert('Composition not found.');
+				//alert('Create a composition named Template and try again.');
+			}
+		}
+
+		/**
+		 * Delete the currently selected keyframe
+		 * if time is different than selected,
+		 * confirm delete keyframe at current time
+		 * Warning: only use the delete btn, Don't use context delete
+		 https://extendscript.docsforadobe.dev/user-interface-tools/types-of-controls.html
+		 https://extendscript.docsforadobe.dev/user-interface-tools/defining-behavior-with-event-callbacks-and-listeners.html
+		 */
+		function deleteMarker(dataList) {
+			if (!selectedComp || !captionLayer) {
+				findSourceComp();
+			}
+			if (!captionLayer) {
+				captionLayer = selectedComp.layer(1);
+				if (captionLayer.name != 'Captions' || captionLayer.sourceText.numKeys == 0) {
+					alert('There are no keyframes on the Captions timeline.');
+					return;
+				}
+				alert('problem: added captionLayer here');
+			}
+
+			// in case it hasn't happened yet
+			findKeyframes(dataList);// refresh cueItems
+
+			try {
+				// selected keyframe OR selectedComp.time
+				var keyframeIndex;// timeline
+				for (var i=0; i<cueItems.length; i++) {
+					if (selectedComp.time >= cueItems[i].time) {
+						keyframeIndex = i;
+						continue;
+					}
+				}
+				
+				if (captionLayer && captionLayer.sourceText.numKeys > 0) {
+					// remove existing keyframes from end to beginning
+					//$.writeln('Found: '+selectedIndex+' : '+keyframeIndex);// VSCode console?
+					//alert('Found: '+selectedIndex+' : '+keyframeIndex);
+					app.beginUndoGroup('Delete keyframe');
+					if (selectedIndex === keyframeIndex) {
+						// remove keyframe and adjust cueItems[]
+						captionLayer.sourceText.removeKey(1+selectedIndex);
+					} else {
+						// comfirm which keyframe to delete
+						// var regex = /(\r\n|\r|\n)/gm;// global multiline
+						var beforeText = captionLayer.sourceText.keyValue(1+keyframeIndex).text;
+						beforeText = JSON.stringify(beforeText);// looks better
+						// beforeText.replace('\"', '');// not working
+						// beforeText.split('\r').join(' - ');// not working
+						// beforeText.replace(regex,' - ');// not working
+						var afterText = '';
+						if (1+keyframeIndex < cueItems.length) {
+							afterText = captionLayer.sourceText.keyValue(2+keyframeIndex).text;// if it exists
+							afterText = JSON.stringify(afterText);
+							// afterText.replace(regex, ' ');// not working
+						}
+
+						if (!afterText) {
+							// if beforeText is the last keyframe, proceed with delete
+							captionLayer.sourceText.removeKey(1+keyframeIndex);
+						} else {
+							var dlg = new Window('dialog', 'Delete keyframe');
+							dlg.btnPnl = dlg.add('panel', undefined, 'Select which keyframe to delete:');
+							dlg.btnPnl.size = [450, 180];
+							//dlg.btnPnl.add('statictext', undefined, 'Caption at timeline: '+selectedIndex+' keyframeIndex: '+keyframeIndex);
+							// dlg.btnPnl.add('statictext', undefined, 'Caption: '+beforeText+' Index: '+keyframeIndex);
+							// alert('btnText: '+beforeText);
+
+							var beforeBtn = dlg.btnPnl.add('button', undefined, beforeText, { name: 'btn1' });
+							beforeBtn.onClick = function () {
+								dlg.close();
+								noteText.text = '';
+								noteText.active = false;
+								captionLayer.sourceText.removeKey(1+keyframeIndex);
+							}
+							var afterBtn = dlg.btnPnl.add('button', undefined, afterText, { name: 'btn2' });
+							afterBtn.onClick = function () {
+								dlg.close();
+								noteText.text = '';
+								noteText.active = false;
+								captionLayer.sourceText.removeKey(2+keyframeIndex);
+							}
+							var cancelBtn = dlg.btnPnl.add('button', undefined, 'Cancel', { name: 'cancel' });
+							cancelBtn.onClick = function () {
+								dlg.close();
+							}
+							dlg.cancelElement = cancelBtn;
+							dlg.center();
+							dlg.show();
+						}
+					}
+
+					app.endUndoGroup();
+					findKeyframes(dataList);// to refresh dataList and put cueItems and keyframes into order
+				}
+			} catch(err) { alert('deleteMarker ERROR: '+err.toString()); }
 		}
 
 		/**
@@ -504,11 +734,11 @@
 			return timeCode + '.' + milliseconds;
 		}
 		/**
-		 * Refresh data from captionLayer keyframes
+		 * Refresh data from adjusted captionLayer keyframes
 		 * convert keyframes to webVTT cue data
 		 * Export .vtt captions file in the project folder
 		 */
-		function saveVttFile() {
+		function saveVttFile(dataList) {
 			try {
 				if (!(isSecurityPrefSet())) {
 					alert("This script requires access to write files.\n" +
@@ -517,8 +747,7 @@
 					return;
 				}
 
-				findSourceComp();// calls CaptionLayer();// if multiple, select one
-				findKeyframes();// refresh cueItems
+				findKeyframes(dataList);// refresh cueItems
 				if (cueItems.length === 0) {
 					alert('There are no keyframes to export!');
 					return;
@@ -565,10 +794,33 @@
 
 				theFile.close();// close the text file
 				alert('VTT file completed.');
+
+				// clear the panel if saved
+				if (dataList) {
+					dataList.removeAll();
+				}
 				cueItems = [];
 			}
 		}// end saveVTT
 
+		/* ToDo: Thumbnails from Caption keyframes?
+		https://creativecow.net/forums/thread/thumbnails-from-markers/
+		// RENDER PATH is your path to export, and FILE_NAME is your preferred name, both are strings.
+		var comp = app.project.activeItem;
+		var markerProp = comp.markerProperty;
+		var markerKeys = markerProp.numKeys;
+		for (var i = 1; i<= markerKeys; i++){
+			var saveFile = new File(RENDER_PATH + '/' + FILE_NAME + '_' + i+'.png');
+			var curMarkerTime = markerProp.keyTime(i);
+			comp.saveFrameToPng(curMarkerTime, saveFile);
+			
+			var loopLength = 10;
+			while (saveFile.exists == false && loopLength) {
+				$.sleep(250);
+				loopLength--;
+			}
+		}
+		*/
 
 		// dockable panel ==================================
 		myPanel.onResizing = myPanel.onResize = function() {
